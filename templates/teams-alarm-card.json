@@ -4,26 +4,150 @@
   "version": "1.4",
   "body": [
     {
-      "type": "TextBlock",
-      "text": "{{severityLabel}}｜{{eventTypeLabel}}",
-      "weight": "Bolder",
-      "size": "Large",
-      "color": "{{adaptiveColor}}",
-      "wrap": true
-    },
-    {
-      "type": "TextBlock",
-      "text": "{{message}}",
-      "wrap": true
+      "type": "Container",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "🔔",
+                  "size": "Medium",
+                  "spacing": "None"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "設備警報通知",
+                  "weight": "Bolder",
+                  "size": "Medium",
+                  "color": "{{adaptiveColor}}",
+                  "wrap": true,
+                  "spacing": "None"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "auto",
+              "style": "{{adaptiveStyle}}",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "{{severityLabel}}",
+                  "weight": "Bolder",
+                  "color": "Light",
+                  "horizontalAlignment": "Center",
+                  "spacing": "Small"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "FactSet",
+      "separator": true,
+      "spacing": "Medium",
       "facts": [
+        { "title": "區域", "value": "{{areaDisplay}}" },
+        { "title": "設備", "value": "{{equipmentDisplay}}" },
         { "title": "Tag", "value": "{{tag}}" },
-        { "title": "Area", "value": "{{areaDisplay}}" },
-        { "title": "Event", "value": "{{eventTypeLabel}}" },
-        { "title": "Time", "value": "{{sourceTimeDisplay}}" },
-        { "title": "Event ID", "value": "{{eventId}}" }
+        { "title": "警報內容", "value": "{{message}}" },
+        { "title": "發生時間", "value": "{{sourceTimeDisplay}}" }
+      ]
+    },
+    {
+      "type": "ColumnSet",
+      "spacing": "Small",
+      "columns": [
+        {
+          "type": "Column",
+          "width": "auto",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "目前狀態",
+              "weight": "Bolder",
+              "spacing": "None"
+            }
+          ]
+        },
+        {
+          "type": "Column",
+          "width": "stretch",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "{{statusLabel}}",
+              "weight": "Bolder",
+              "color": "Attention",
+              "wrap": true,
+              "spacing": "None"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "spacing": "Medium",
+      "items": [
+        {
+          "type": "FactSet",
+          "facts": [
+            { "title": "Alarm ID", "value": "{{eventId}}" },
+            { "title": "發報系統", "value": "AlarmGateway" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ColumnSet",
+      "separator": true,
+      "spacing": "Medium",
+      "columns": [
+        {
+          "type": "Column",
+          "width": "auto",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "ⓘ",
+              "color": "Attention",
+              "weight": "Bolder",
+              "spacing": "None"
+            }
+          ]
+        },
+        {
+          "type": "Column",
+          "width": "stretch",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "請立即確認設備狀況",
+              "color": "Attention",
+              "weight": "Bolder",
+              "wrap": true,
+              "spacing": "None"
+            }
+          ]
+        }
       ]
     }
   ]

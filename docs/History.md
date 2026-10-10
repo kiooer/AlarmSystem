@@ -14,6 +14,50 @@
 
 ---
 
+## 0.0.1 — 調整 Teams JSON 卡片
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-10 |
+| 時間 | 19:42:17 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `調整json卡片`（實際 hash 以 Git history 為準） |
+| 編撰者 | `kiooer` |
+
+### 編撰檔案名稱
+
+- `docs/History.md`
+- `templates/teams-alarm-card.json`
+- `src/AlarmSystem.Application/Abstractions/Notifications/AlarmNotification.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Teams/TeamsAdaptiveCardRenderer.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Teams/TeamsAdaptiveCardRendererTests.cs`
+
+### 開發內容與功能
+
+- 依核准參考圖片重排 Teams Adaptive Card，加入警報圖示、設備警報通知標題及 severity badge。
+- 卡片資訊調整為區域、設備、Tag、警報內容、發生時間及目前狀態。
+- 新增 Alarm ID、發報系統 `AlarmGateway` 及「請立即確認設備狀況」提醒區塊。
+- `AlarmNotification` 新增可選的 `Equipment` 欄位；空白設備顯示為 `—`。
+- severity 同時對應文字顏色及容器樣式：HIGH／Attention、MEDIUM／Warning、LOW／Good。
+- 事件狀態顯示 mapping：`ALARM -> Active / UnACK`、`ACK -> Acknowledged`。
+- 保持 Adaptive Card 1.4，並繼續使用 JSON DOM 安全注入事件內容。
+
+### 測試與驗證
+
+- JSON 由 PowerShell `ConvertFrom-Json` 解析成功。
+- `dotnet build AlarmSystem.sln --no-restore --verbosity minimal -m:1`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --verbosity minimal -m:1`：22 passed、0 failed、0 skipped。
+- 測試新增設備顯示、severity 容器樣式及 ALARM／ACK 狀態 mapping 驗證。
+- 本次修改檔案 `dotnet format --verify-no-changes`：通過。
+- `git diff --check`：通過。
+
+### 設定、相容性與尚待確認
+
+- 沒有資料庫 schema、migration、部署或秘密設定變更。
+- Adaptive Card 1.4 無法保證完全重現圖片中的圓角紅色外框與膠囊 badge；實際呈現仍受 Teams 用戶端 renderer 影響。
+- 尚未使用真實 Teams endpoint 驗證桌面版、網頁版及手機版的最終卡片外觀。
+
+---
+
 ## 0.0.1 — 建立開發歷程制度
 
 | 項目 | 內容 |

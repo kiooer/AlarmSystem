@@ -9,4 +9,5 @@ public sealed record AlarmNotification(
     AlarmEventType EventType,
     AlarmSeverity Severity,
     string Message,
-    DateTimeOffset SourceTimestamp);
+    DateTimeOffset SourceTimestamp,
+    string? Equipment = null);

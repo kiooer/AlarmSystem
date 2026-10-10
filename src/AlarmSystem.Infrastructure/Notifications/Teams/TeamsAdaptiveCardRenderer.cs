@@ -15,7 +15,7 @@ namespace AlarmSystem.Infrastructure.Notifications.Teams;
 /// <list type="bullet">
 /// <item><description>解析樣板 JSON，並驗證根節點類型、Adaptive Card 版本、body 及必要 placeholder。</description></item>
 /// <item><description>將事件識別碼、Tag、區域、事件類型、嚴重程度、訊息與來源時間填入樣板。</description></item>
-/// <item><description>將 HIGH、MEDIUM、LOW 對應為 Attention、Warning、Good 顏色。</description></item>
+/// <item><description>將 HIGH、MEDIUM、LOW 對應為 Attention、Warning、Good 顏色與容器樣式。</description></item>
 /// <item><description>處理空白顯示值及包含 UTC offset 的時間格式。</description></item>
 /// <item><description>透過 JSON DOM 寫入文字，確保引號、換行及 Unicode 等內容由序列化器安全跳脫。</description></item>
 /// <item><description>每次渲染時複製原始樣板，避免不同通知之間共用或污染卡片狀態。</description></item>
@@ -31,12 +31,14 @@ public sealed partial class TeamsAdaptiveCardRenderer
     private static readonly HashSet<string> RequiredPlaceholders =
     [
         "severityLabel",
-        "eventTypeLabel",
         "adaptiveColor",
+        "adaptiveStyle",
         "message",
         "tag",
         "areaDisplay",
+        "equipmentDisplay",
         "sourceTimeDisplay",
+        "statusLabel",
         "eventId",
     ];
 
@@ -91,16 +93,20 @@ public sealed partial class TeamsAdaptiveCardRenderer
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["severityLabel"] = notification.Severity.ToString().ToUpperInvariant(),
-            ["eventTypeLabel"] = notification.EventType.ToString().ToUpperInvariant(),
             ["adaptiveColor"] = ToAdaptiveColor(notification.Severity),
+            ["adaptiveStyle"] = ToAdaptiveStyle(notification.Severity),
             ["message"] = notification.Message,
             ["tag"] = notification.Tag,
             ["areaDisplay"] = string.IsNullOrWhiteSpace(notification.Area)
                 ? EmptyDisplayValue
                 : notification.Area,
+            ["equipmentDisplay"] = string.IsNullOrWhiteSpace(notification.Equipment)
+                ? EmptyDisplayValue
+                : notification.Equipment,
             ["sourceTimeDisplay"] = notification.SourceTimestamp.ToString(
                 "yyyy-MM-dd HH:mm:ss zzz",
                 CultureInfo.InvariantCulture),
+            ["statusLabel"] = ToStatusLabel(notification.EventType),
             ["eventId"] = notification.EventId.ToString("D"),
         };
 
@@ -218,6 +224,21 @@ public sealed partial class TeamsAdaptiveCardRenderer
         AlarmSeverity.Medium => "Warning",
         AlarmSeverity.Low => "Good",
         _ => throw new ArgumentOutOfRangeException(nameof(severity), severity, "Unknown severity."),
+    };
+
+    private static string ToAdaptiveStyle(AlarmSeverity severity) => severity switch
+    {
+        AlarmSeverity.High => "attention",
+        AlarmSeverity.Medium => "warning",
+        AlarmSeverity.Low => "good",
+        _ => throw new ArgumentOutOfRangeException(nameof(severity), severity, "Unknown severity."),
+    };
+
+    private static string ToStatusLabel(AlarmEventType eventType) => eventType switch
+    {
+        AlarmEventType.Alarm => "Active / UnACK",
+        AlarmEventType.Ack => "Acknowledged",
+        _ => throw new ArgumentOutOfRangeException(nameof(eventType), eventType, "Unknown event type."),
     };
 
     [GeneratedRegex("\\{\\{([A-Za-z][A-Za-z0-9]*)\\}\\}", RegexOptions.CultureInvariant)]
