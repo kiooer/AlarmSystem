@@ -23,4 +23,10 @@
     <ProjectReference Include="..\..\src\AlarmSystem.Infrastructure\AlarmSystem.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\templates\teams-alarm-card.json"
+             Link="templates\teams-alarm-card.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\AlarmSystem.Domain\AlarmSystem.Domain.csproj" />
     <ProjectReference Include="..\AlarmSystem.Application\AlarmSystem.Application.csproj" />
   </ItemGroup>
 
