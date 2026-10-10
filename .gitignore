@@ -1,0 +1,28 @@
+# Build output
+**/bin/
+**/obj/
+
+# Visual Studio / VS Code user state
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Test output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Runtime data and local secrets
+logs/
+*.log
+*.csv
+appsettings.Local.json
+appsettings.*.local.json
+.env
+
+# OS files
+Thumbs.db
+.DS_Store

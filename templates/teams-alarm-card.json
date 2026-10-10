@@ -1,0 +1,30 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "{{severityLabel}}｜{{eventTypeLabel}}",
+      "weight": "Bolder",
+      "size": "Large",
+      "color": "{{adaptiveColor}}",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "{{message}}",
+      "wrap": true
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "Tag", "value": "{{tag}}" },
+        { "title": "Area", "value": "{{areaDisplay}}" },
+        { "title": "Event", "value": "{{eventTypeLabel}}" },
+        { "title": "Time", "value": "{{sourceTimeDisplay}}" },
+        { "title": "Event ID", "value": "{{eventId}}" }
+      ]
+    }
+  ]
+}
