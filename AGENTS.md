@@ -366,6 +366,12 @@ Localization      # UI culture、顯示時區
 - 是否涉及 schema、設定、部署、秘密或相容性變更。
 - 可由使用者重現的驗證步驟。
 
+每次建立 commit 前，必須先更新 `docs/History.md`，以 `Asia/Taipei` 時間記錄版本、日期、時間、
+commit、編撰檔案、開發內容、功能、測試結果、設定／相容性變更及尚待確認事項。
+若歷程與變更包含於同一個 commit，該筆紀錄使用「本次提交」及 commit 訊息識別，實際 hash 以 Git history 為準，
+不得為了在 commit 內容中記錄自身 hash 而反覆 amend。
+歷程紀錄不得包含任何秘密。
+
 不要：
 
 - 宣稱未執行的測試已通過，或未部署的功能已上線。
