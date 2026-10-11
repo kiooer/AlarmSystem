@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="WindowTitle" xml:space="preserve"><value>LINE 發報測試</value></data>
+  <data name="ToolNotice" xml:space="preserve"><value>此工具會在明確確認後進行真實外部發送，僅供人工測試與診斷，不是正式警報派送流程。</value></data>
+  <data name="ConnectionSection" xml:space="preserve"><value>LINE 連線設定</value></data>
+  <data name="GroupIdLabel" xml:space="preserve"><value>GroupId</value></data>
+  <data name="ChannelAccessTokenLabel" xml:space="preserve"><value>Channel Access Token</value></data>
+  <data name="TokenSecurityHint" xml:space="preserve"><value>Token 僅在按下傳送時使用，不會保存；關閉視窗時會清除。</value></data>
+  <data name="ApiEndpointLabel" xml:space="preserve"><value>API endpoint</value></data>
+  <data name="TimeoutSecondsLabel" xml:space="preserve"><value>Timeout 秒數（1–120）</value></data>
+  <data name="AlarmSection" xml:space="preserve"><value>測試警報內容</value></data>
+  <data name="EventIdLabel" xml:space="preserve"><value>EventId</value></data>
+  <data name="TagLabel" xml:space="preserve"><value>Tag</value></data>
+  <data name="AreaLabel" xml:space="preserve"><value>區域</value></data>
+  <data name="EquipmentLabel" xml:space="preserve"><value>設備</value></data>
+  <data name="EventTypeLabel" xml:space="preserve"><value>事件類型</value></data>
+  <data name="SeverityLabel" xml:space="preserve"><value>警報等級</value></data>
+  <data name="MessageLabel" xml:space="preserve"><value>警報內容</value></data>
+  <data name="SourceTimestampLabel" xml:space="preserve"><value>發生時間（含 offset）</value></data>
+  <data name="EventTypeAlarm" xml:space="preserve"><value>警報（Alarm）</value></data>
+  <data name="EventTypeAck" xml:space="preserve"><value>已確認（Ack）</value></data>
+  <data name="SeverityHigh" xml:space="preserve"><value>高（High）</value></data>
+  <data name="SeverityMedium" xml:space="preserve"><value>中（Medium）</value></data>
+  <data name="SeverityLow" xml:space="preserve"><value>低（Low）</value></data>
+  <data name="PreviewSection" xml:space="preserve"><value>LINE 訊息預覽</value></data>
+  <data name="UpdatePreviewButton" xml:space="preserve"><value>更新預覽</value></data>
+  <data name="NewTestDataButton" xml:space="preserve"><value>產生新測試資料</value></data>
+  <data name="SendSection" xml:space="preserve"><value>傳送控制</value></data>
+  <data name="RealSendConfirmationCheckbox" xml:space="preserve"><value>我確認這是測試訊息，並將傳送至真實 LINE 群組</value></data>
+  <data name="SendTestMessageButton" xml:space="preserve"><value>傳送測試訊息</value></data>
+  <data name="CancelButton" xml:space="preserve"><value>取消</value></data>
+  <data name="ResultSection" xml:space="preserve"><value>最近一次結果</value></data>
+  <data name="StatusMessageLabel" xml:space="preserve"><value>狀態</value></data>
+  <data name="SendStatusLabel" xml:space="preserve"><value>結果分類</value></data>
+  <data name="ErrorCodeLabel" xml:space="preserve"><value>錯誤碼</value></data>
+  <data name="HttpStatusCodeLabel" xml:space="preserve"><value>HTTP 狀態碼</value></data>
+  <data name="ExternalMessageIdLabel" xml:space="preserve"><value>LINE message/request ID</value></data>
+  <data name="ElapsedTimeLabel" xml:space="preserve"><value>耗時</value></data>
+  <data name="DefaultArea" xml:space="preserve"><value>測試區域</value></data>
+  <data name="DefaultEquipment" xml:space="preserve"><value>測試設備</value></data>
+  <data name="DefaultMessage" xml:space="preserve"><value>[測試] LINE 警報通知</value></data>
+  <data name="StatusReady" xml:space="preserve"><value>請輸入連線資料、確認預覽並勾選實際發送確認。</value></data>
+  <data name="StatusSending" xml:space="preserve"><value>傳送中</value></data>
+  <data name="StatusSucceededFormat" xml:space="preserve"><value>傳送成功。EventId：{0}；目的地：{1}；LINE message/request ID：{2}；耗時：{3}。</value></data>
+  <data name="StatusRetryableFormat" xml:space="preserve"><value>暫時性失敗。錯誤碼：{0}；HTTP 狀態碼：{1}；耗時：{2}。建議稍後再試。</value></data>
+  <data name="StatusPermanentFormat" xml:space="preserve"><value>永久失敗或設定錯誤。錯誤碼：{0}；HTTP 狀態碼：{1}；耗時：{2}。請檢查 GroupId、token、訊息格式或 LINE Official Account 是否仍在群組。</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>傳送已取消</value></data>
+  <data name="StatusConfirmationCancelled" xml:space="preserve"><value>已取消實際發送，未呼叫 LINE API。</value></data>
+  <data name="StatusUnexpectedFailure" xml:space="preserve"><value>LINE 測試發送失敗，請查看非敏感診斷資訊。</value></data>
+  <data name="StatusSucceeded" xml:space="preserve"><value>成功</value></data>
+  <data name="StatusRetryable" xml:space="preserve"><value>可重試失敗</value></data>
+  <data name="StatusPermanent" xml:space="preserve"><value>永久失敗</value></data>
+  <data name="ValidationGroupIdRequired" xml:space="preserve"><value>請輸入 LINE GroupId。</value></data>
+  <data name="ValidationTokenRequired" xml:space="preserve"><value>請輸入 Channel Access Token。</value></data>
+  <data name="ValidationTimeout" xml:space="preserve"><value>Timeout 必須是 1 到 120 秒的整數。</value></data>
+  <data name="ValidationConfirmationRequired" xml:space="preserve"><value>請先勾選真實 LINE 群組發送確認。</value></data>
+  <data name="ValidationAlarmData" xml:space="preserve"><value>請先修正測試警報資料並更新預覽。</value></data>
+  <data name="ValidationEventId" xml:space="preserve"><value>EventId 必須是有效的 GUID。</value></data>
+  <data name="ValidationTag" xml:space="preserve"><value>Tag 不得為空白。</value></data>
+  <data name="ValidationMessage" xml:space="preserve"><value>警報內容不得為空白。</value></data>
+  <data name="ValidationTimestamp" xml:space="preserve"><value>發生時間必須是包含有效 offset 的日期時間。</value></data>
+  <data name="ValidationPreviewTooLong" xml:space="preserve"><value>LINE 訊息超過 5,000 個 UTF-16 code units，請縮短內容。</value></data>
+  <data name="ValidationPreview" xml:space="preserve"><value>無法產生 LINE 訊息預覽，請檢查輸入欄位。</value></data>
+  <data name="SendConfirmationTitle" xml:space="preserve"><value>確認真實 LINE 發送</value></data>
+  <data name="SendConfirmationMessageFormat" xml:space="preserve"><value>這會將測試訊息實際傳送至外部 LINE 群組。&#xA;&#xA;目的地：{0}&#xA;EventId：{1}&#xA;警報等級：{2}&#xA;Tag：{3}&#xA;&#xA;是否繼續？</value></data>
+  <data name="NotAvailable" xml:space="preserve"><value>—</value></data>
+</root>

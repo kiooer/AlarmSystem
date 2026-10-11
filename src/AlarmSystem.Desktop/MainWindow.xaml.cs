@@ -1,23 +1,49 @@
-﻿using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using AlarmSystem.Desktop.ViewModels;
 
 namespace AlarmSystem.Desktop;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
-    public MainWindow()
+    private readonly LineNotificationTestViewModel viewModel;
+
+    public MainWindow(LineNotificationTestViewModel viewModel)
     {
         InitializeComponent();
+        this.viewModel = viewModel;
+        DataContext = viewModel;
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (viewModel.CancelCommand.CanExecute(null))
+        {
+            viewModel.CancelCommand.Execute(null);
+        }
+
+        ChannelAccessTokenPasswordBox.Clear();
+        viewModel.SetChannelAccessTokenPresent(false);
+        base.OnClosed(e);
+    }
+
+    private void ChannelAccessTokenPasswordBox_OnPasswordChanged(
+        object sender,
+        RoutedEventArgs e)
+    {
+        using var securePassword = ChannelAccessTokenPasswordBox.SecurePassword;
+        viewModel.SetChannelAccessTokenPresent(securePassword.Length > 0);
+    }
+
+    private async void SendButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var channelAccessToken = ChannelAccessTokenPasswordBox.Password;
+        try
+        {
+            await viewModel.SendAsync(channelAccessToken);
+        }
+        finally
+        {
+            channelAccessToken = string.Empty;
+        }
     }
 }

@@ -38,7 +38,7 @@ WPF 管理介面 ── 設定、狀態、查詢、測試與多語顯示
 - 事件需依來源時間戳進行增量輪詢與去重；去重狀態必須持久化，不能只存在記憶體。
 - 警報分級至少包含 `HIGH`、`MEDIUM`、`LOW`，內部使用固定 enum 或值物件，不在各模組散落字串比較。
 - 第一階段通知通道為 Microsoft Teams，訊息內容採外部 JSON 樣板產生 Adaptive Card。
-- LINE 與 TTS 為後續擴充通道；第一階段架構需可插拔，但不得在未確認需求前提前實作完整整合。
+- LINE Messaging API 群組推播 adapter 已核准為獨立、可插拔的通知通道；TTS 仍屬後續擴充，不得在未確認需求前提前實作。
 - 系統需產生 CSV 紀錄，並提供三個月資料保留與自動清理機制。
 - 管理端採 WPF，所有使用者可見文字必須可在地化，不得直接硬編碼於 View 或 ViewModel。
 - 設定、密碼與權杖必須分離；敏感資料不得提交至 Git，也不得寫入一般 log 或 CSV。
@@ -52,7 +52,7 @@ WPF 管理介面 ── 設定、狀態、查詢、測試與多語顯示
 - Windows Service 安裝、啟動、復原及服務帳號設定。
 - ALARM/ACK 關聯、去重 ledger、watermark 或 outbox 資料表。
 - Teams 實際送出、權杖或 webhook 設定、Adaptive Card 在目標租戶的相容性。
-- CSV 寫入、三個月清理排程、WPF 畫面、多語資源及 LINE/TTS。
+- CSV 寫入、三個月清理排程、WPF 畫面、多語資源及 TTS；LINE 正式環境派送仍須以部署設定與驗收證實。
 - CI、安裝包、監控、壓力測試與正式環境驗收。
 
 ## 3. 開發原則
@@ -258,7 +258,7 @@ Polling           # interval、overlap、initial lookback
 SeverityMapping   # iFIX 值到 HIGH/MEDIUM/LOW
 Notifications
   Teams           # enabled、destination reference、template、retry policy
-  Line            # 第一階段預設 disabled
+  Line            # Messaging API 群組推播，預設 disabled
   Tts             # 第一階段預設 disabled
 Csv               # enabled、目錄、輪替、編碼
 Retention         # period、schedule、batch size
@@ -292,6 +292,7 @@ Localization      # UI culture、顯示時區
 - 時間戳時區、精度、邊界、排序、overlap 與 watermark 前進規則。
 - 去重 fingerprint 的穩定性與不同事件不可誤判為相同。
 - Teams model/JSON rendering：特殊字元、換行、空值、多語與 schema 驗證。
+- LINE 純文字 rendering：欄位 mapping、特殊字元、offset、輸入驗證、未知 enum 與 5,000 UTF-16 上限。
 - CSV escaping、固定欄位順序、編碼與輪替命名。
 - 保留 cutoff、曆月/天數策略與最終狀態保護。
 - retry/backoff 上限與永久失敗分類。
@@ -299,12 +300,12 @@ Localization      # UI culture、顯示時區
 ### 12.2 整合測試
 
 - 使用與正式相同 major version 的 SQL Server 相容環境測試 migration、唯一約束、並行登錄及查詢排序；若 SQL Server Express 與其他 edition 有差異，要補目標環境 smoke test。
-- 以 fake/stub 通知 server 驗證成功、timeout、429、5xx、無效回應及重啟後續送。
+- 以 fake/stub 通知 server 或 `HttpMessageHandler` 驗證 Teams／LINE 成功、timeout、HTTP 錯誤、無效回應及冪等識別。
 - 驗證程序在批次不同階段中止後，事件不遺失且已成功項目不重複建立 delivery。
 - 驗證 CSV 鎖檔、磁碟/權限失敗不會破壞輪詢一致性。
 - WPF ViewModel 與 localization fallback 測試；關鍵流程另做基本 UI smoke test。
 
-測試不可連線正式 iFIX、正式 Teams channel 或使用真實秘密。測試資料需包含同時間戳多事件、晚到事件、重複列、無法關聯 ACK、未知 severity、Unicode Tag/訊息及超長訊息。
+測試不可連線正式 iFIX、正式 Teams／LINE channel 或使用真實秘密。測試資料需包含同時間戳多事件、晚到事件、重複列、無法關聯 ACK、未知 severity、Unicode Tag/訊息及超長訊息。
 
 ## 13. 驗收基線
 
@@ -343,7 +344,7 @@ Localization      # UI culture、顯示時區
 - 哪些 severity/event type 要通知哪些目的地；ACK 是否一定通知。
 - 卡片語言、標題、欄位、顏色、mention、連結及是否包含可操作按鈕。
 - 重試次數、最大延遲、永久失敗後告警方式及人工補送流程。
-- LINE 使用 Messaging API 或其他核准方式；TTS 引擎、語言、聲音、播放端與安靜時段。
+- LINE 目標 `GroupId` 的受控取得流程、正式 channel access token 秘密儲存、目的群組與實際環境驗收；TTS 引擎、語言、聲音、播放端與安靜時段。
 
 ### 14.3 阻擋部署、UI 與驗收
 
@@ -381,3 +382,45 @@ commit、編撰檔案、開發內容、功能、測試結果、設定／相容�
 - 修改、重新命名、移動或刪除 `sources/` 下的同步參考資料；該目錄唯讀，且內容可能在下一次同步時被替換。
 
 若需求與本文件衝突，先指出衝突並取得決策；取得確認後，同一變更中更新本文件或對應 ADR，避免程式與決策基線分離。
+
+## 16. LINE Messaging API 群組警報推播
+
+以下是已核准的 LINE adapter 實作與後續維護基線；描述的是本次功能邊界，不得據此虛構尚不存在的警報派送流程。
+
+### 16.1 契約與模組邊界
+
+- LINE 與 Teams 是兩個互不依賴的 `INotificationChannel` 實作，直接共用既有 `AlarmNotification`、`NotificationSendResult`、`AlarmEventType` 與 `AlarmSeverity`。
+- 不得建立 LINE 專用警報 DTO，也不得讓 LINE 程式依賴 Teams renderer、Adaptive Card、Teams options 或 Teams 樣板。
+- Worker 同時註冊 Teams 與 LINE 通道，使未來派送端可透過 `IEnumerable<INotificationChannel>` 取得全部通道；LINE 停用不得影響 Teams。
+- 目前沒有真正的警報派送協調、polling、outbox、retry scheduler 或正式 WPF 派送串接；Desktop 僅可提供需人工確認的測試 UI，並且必須直接呼叫正式 LINE adapter，不得虛構或取代正式派送流程。
+- 本階段不新增資料庫 schema，不包含配額／用量／月費管理、tenant 隔離、集中式 LINE gateway、webhook receiver／signature 驗證、`GroupId` 自動發現或維護、回覆訊息、指令機器人、Flex Message、rich menu 或真實 LINE API 自動測試。
+
+### 16.2 設定與秘密
+
+- 設定區段固定為 `Notifications:Line`，包含 `Enabled`、`GroupId`、`ChannelAccessToken` 與正值且不超過兩分鐘的 `Timeout`。
+- LINE 預設停用；停用時允許缺少 `GroupId` 與 token。啟用時兩者都必須非空白。
+- repository 的 `appsettings.json` 只可保存無秘密的停用預設，不得加入 `ChannelAccessToken` placeholder。
+- 正式 token 只可由環境變數（`Notifications__Line__ChannelAccessToken`）、user-secrets 或核准的秘密儲存提供；token、Authorization header、完整 request payload、LINE error response body 與完整 `GroupId` 不得出現在 log、例外、測試輸出、文件範例值或 Git。
+- `ChannelName` 固定為 `Line`，`DestinationReference` 回傳設定的 `GroupId`。
+- LINE API endpoint 固定為官方 `https://api.line.me/v2/bot/message/push`，不得開放一般設定導向任意主機。
+
+### 16.3 訊息與 HTTP 契約
+
+- LINE 只傳送固定、可測試的繁體中文純文字，欄位依序為標題、等級、區域、設備、Tag、警報內容、發生時間、目前狀態、Alarm ID、發報系統與立即確認提醒。
+- 等級 mapping 為 `High -> HIGH`、`Medium -> MEDIUM`、`Low -> LOW`；狀態 mapping 為 `Alarm -> Active / UnACK`、`Ack -> Acknowledged`。未知 enum 必須明確失敗。
+- Tag 與 Message 採 Teams renderer 相同的非空白驗證並保留 Unicode、引號與換行；空白 Area／Equipment 顯示 `—`。
+- `SourceTimestamp` 使用 invariant culture 的 `yyyy-MM-dd HH:mm:ss zzz` 並保留原 offset；EventId 使用 D 格式。
+- 完整文字不得超過 5,000 個 UTF-16 code units；超過時不得截斷或呼叫 HTTP，回傳永久失敗 `line_message_too_long`。
+- 請求使用 POST、JSON、Bearer token；首次請求就必須包含由同一筆 `AlarmNotification.EventId` D 格式穩定產生的 `X-Line-Retry-Key`。
+- 2xx 回傳成功；外部 ID 優先取 `sentMessages[0].id`，否則取 `X-Line-Request-Id`。成功 body 缺欄位或不是預期 JSON，不得改判失敗。
+- 因所有請求都使用穩定 retry key，409 視為先前請求已接受並回傳成功；外部 ID 依序取 `sentMessages[0].id`、`X-Line-Accepted-Request-Id`、`X-Line-Request-Id`。
+- 5xx 回傳 `RetryableFailure / line_http_error`；4xx（409 除外，包含 429）回傳 `PermanentFailure / line_http_error`，並保存實際 status code。
+- `HttpRequestException` 回傳 `RetryableFailure / line_transport_error`；非呼叫端取消的 HTTP timeout 回傳 `RetryableFailure / line_timeout`；呼叫端取消必須原樣拋出 `OperationCanceledException`。
+- 停用時不呼叫 HTTP，回傳 `PermanentFailure / channel_disabled`。不得新增 LINE SDK，使用既有 HttpClientFactory 與 System.Text.Json 能力。
+
+### 16.4 測試與操作前提
+
+- HTTP 測試必須使用本機 `HttpMessageHandler` stub，不得連線正式 LINE 或 Teams endpoint。
+- 測試至少涵蓋 options 的 enabled／disabled 與 timeout 驗證、renderer 的全部 mapping／輸入／offset／特殊字元／5,000 邊界，以及 HTTP URI、headers、payload、穩定 retry key、2xx／409／4xx／5xx、timeout、transport error、呼叫端取消和不呼叫 HTTP 的情境。
+- LINE Official Account 必須啟用「Allow bot to join group chats」並已加入目標群組；本系統不接收 webhook。
+- `GroupId` 必須先由受控的外部／一次性流程取得，再由部署環境安全提供；真實 `GroupId` 與 token 不得提交至 Git。

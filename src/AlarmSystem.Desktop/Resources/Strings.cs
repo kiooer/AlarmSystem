@@ -1,0 +1,79 @@
+using System.Globalization;
+using System.Resources;
+
+namespace AlarmSystem.Desktop.Resources;
+
+public static class Strings
+{
+    private static readonly ResourceManager ResourceManager = new(
+        "AlarmSystem.Desktop.Resources.Strings",
+        typeof(Strings).Assembly);
+
+    public static string WindowTitle => GetString(nameof(WindowTitle));
+    public static string ToolNotice => GetString(nameof(ToolNotice));
+    public static string ConnectionSection => GetString(nameof(ConnectionSection));
+    public static string GroupIdLabel => GetString(nameof(GroupIdLabel));
+    public static string ChannelAccessTokenLabel => GetString(nameof(ChannelAccessTokenLabel));
+    public static string TokenSecurityHint => GetString(nameof(TokenSecurityHint));
+    public static string ApiEndpointLabel => GetString(nameof(ApiEndpointLabel));
+    public static string TimeoutSecondsLabel => GetString(nameof(TimeoutSecondsLabel));
+    public static string AlarmSection => GetString(nameof(AlarmSection));
+    public static string EventIdLabel => GetString(nameof(EventIdLabel));
+    public static string TagLabel => GetString(nameof(TagLabel));
+    public static string AreaLabel => GetString(nameof(AreaLabel));
+    public static string EquipmentLabel => GetString(nameof(EquipmentLabel));
+    public static string EventTypeLabel => GetString(nameof(EventTypeLabel));
+    public static string SeverityLabel => GetString(nameof(SeverityLabel));
+    public static string MessageLabel => GetString(nameof(MessageLabel));
+    public static string SourceTimestampLabel => GetString(nameof(SourceTimestampLabel));
+    public static string EventTypeAlarm => GetString(nameof(EventTypeAlarm));
+    public static string EventTypeAck => GetString(nameof(EventTypeAck));
+    public static string SeverityHigh => GetString(nameof(SeverityHigh));
+    public static string SeverityMedium => GetString(nameof(SeverityMedium));
+    public static string SeverityLow => GetString(nameof(SeverityLow));
+    public static string PreviewSection => GetString(nameof(PreviewSection));
+    public static string UpdatePreviewButton => GetString(nameof(UpdatePreviewButton));
+    public static string NewTestDataButton => GetString(nameof(NewTestDataButton));
+    public static string SendSection => GetString(nameof(SendSection));
+    public static string RealSendConfirmationCheckbox => GetString(nameof(RealSendConfirmationCheckbox));
+    public static string SendTestMessageButton => GetString(nameof(SendTestMessageButton));
+    public static string CancelButton => GetString(nameof(CancelButton));
+    public static string ResultSection => GetString(nameof(ResultSection));
+    public static string StatusMessageLabel => GetString(nameof(StatusMessageLabel));
+    public static string SendStatusLabel => GetString(nameof(SendStatusLabel));
+    public static string ErrorCodeLabel => GetString(nameof(ErrorCodeLabel));
+    public static string HttpStatusCodeLabel => GetString(nameof(HttpStatusCodeLabel));
+    public static string ExternalMessageIdLabel => GetString(nameof(ExternalMessageIdLabel));
+    public static string ElapsedTimeLabel => GetString(nameof(ElapsedTimeLabel));
+    public static string DefaultArea => GetString(nameof(DefaultArea));
+    public static string DefaultEquipment => GetString(nameof(DefaultEquipment));
+    public static string DefaultMessage => GetString(nameof(DefaultMessage));
+    public static string StatusReady => GetString(nameof(StatusReady));
+    public static string StatusSending => GetString(nameof(StatusSending));
+    public static string StatusSucceededFormat => GetString(nameof(StatusSucceededFormat));
+    public static string StatusRetryableFormat => GetString(nameof(StatusRetryableFormat));
+    public static string StatusPermanentFormat => GetString(nameof(StatusPermanentFormat));
+    public static string StatusCancelled => GetString(nameof(StatusCancelled));
+    public static string StatusConfirmationCancelled => GetString(nameof(StatusConfirmationCancelled));
+    public static string StatusUnexpectedFailure => GetString(nameof(StatusUnexpectedFailure));
+    public static string StatusSucceeded => GetString(nameof(StatusSucceeded));
+    public static string StatusRetryable => GetString(nameof(StatusRetryable));
+    public static string StatusPermanent => GetString(nameof(StatusPermanent));
+    public static string ValidationGroupIdRequired => GetString(nameof(ValidationGroupIdRequired));
+    public static string ValidationTokenRequired => GetString(nameof(ValidationTokenRequired));
+    public static string ValidationTimeout => GetString(nameof(ValidationTimeout));
+    public static string ValidationConfirmationRequired => GetString(nameof(ValidationConfirmationRequired));
+    public static string ValidationAlarmData => GetString(nameof(ValidationAlarmData));
+    public static string ValidationEventId => GetString(nameof(ValidationEventId));
+    public static string ValidationTag => GetString(nameof(ValidationTag));
+    public static string ValidationMessage => GetString(nameof(ValidationMessage));
+    public static string ValidationTimestamp => GetString(nameof(ValidationTimestamp));
+    public static string ValidationPreviewTooLong => GetString(nameof(ValidationPreviewTooLong));
+    public static string ValidationPreview => GetString(nameof(ValidationPreview));
+    public static string SendConfirmationTitle => GetString(nameof(SendConfirmationTitle));
+    public static string SendConfirmationMessageFormat => GetString(nameof(SendConfirmationMessageFormat));
+    public static string NotAvailable => GetString(nameof(NotAvailable));
+
+    private static string GetString(string name) =>
+        ResourceManager.GetString(name, CultureInfo.CurrentUICulture) ?? name;
+}

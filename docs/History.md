@@ -14,6 +14,54 @@
 
 ---
 
+## 0.0.2 — 加入 LINE 發送及測試 WPF
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-11 |
+| 時間 | 19:32:07 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `加入line發送及測試WPF`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `AGENTS.md`、`AlarmSystem.sln`、`README.md`、`docs/History.md`
+- `src/AlarmSystem.Infrastructure/Notifications/Line/LineOptions.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Line/LineAlarmTextRenderer.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Line/LineMessagingApiNotificationChannel.cs`
+- `src/AlarmSystem.Worker/Program.cs`、`src/AlarmSystem.Worker/appsettings.json`
+- `src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj`、`App.xaml`、`App.xaml.cs`、`AssemblyInfo.cs`、`MainWindow.xaml`、`MainWindow.xaml.cs`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/Services/ILineNotificationTestService.cs`、`ILineSendConfirmationService.cs`、`LineNotificationTestService.cs`、`LineSendConfirmationService.cs`
+- `src/AlarmSystem.Desktop/ViewModels/LineNotificationTestViewModel.cs`、`RelayCommand.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Line/LineOptionsTests.cs`、`LineAlarmTextRendererTests.cs`、`LineMessagingApiNotificationChannelTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/AlarmSystem.Desktop.Tests.csproj`、`Services/LineNotificationTestServiceTests.cs`、`ViewModels/LineNotificationTestViewModelTests.cs`
+
+### 開發內容與功能
+
+- 新增可插拔的 LINE Messaging API Push Message 通道，直接使用既有 `AlarmNotification`、`INotificationChannel` 與 `NotificationSendResult`；Teams 與 LINE 分別註冊於 Worker。
+- 新增 LINE 繁體中文純文字 renderer、5,000 UTF-16 code units 上限、固定官方 HTTPS endpoint、以 EventId 產生的穩定 retry key、HTTP 錯誤及取消分類。
+- 新增 WPF 人工測試畫面，使用正式 LINE renderer 與 channel 預覽和發送；提供輸入驗證、遮罩目的地、雙重確認、非同步發送、取消、結果分類與繁體中文 `.resx` 資源。
+- token 僅在發送時由 `PasswordBox` 取得；UI 不持久化 token 或 GroupId，視窗關閉時清除密碼欄位。
+- 更新 README 的部署設定、測試 UI 操作及功能邊界，並更新 AGENTS 的 LINE 實作基線。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln`：成功；NuGet 弱點資料來源無法連線，出現 `NU1900` 警告。
+- `dotnet build AlarmSystem.sln --no-restore --verbosity minimal -m:1`：成功，0 error；同樣有 `NU1900` 警告。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --verbosity minimal -m:1`：93 passed、0 failed、0 skipped（整合測試 65、Desktop 測試 28）。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore` 與 `git diff --check`：通過。
+- Desktop 在未輸入 token 的情況下可啟動；自動 HTTP 測試全部使用本機 stub，未向真實 LINE 或 Teams 發送。
+- 變更內容的常見 token、Bearer 值與 GroupId 模式掃描未發現真實秘密。
+
+### 設定、相容性與尚待確認
+
+- Worker 新增預設停用、無 token 的 `Notifications:Line` 設定；Desktop 新增 .NET 10 相容的 DI／HttpClientFactory 套件與 `net10.0-windows` 測試專案。
+- 沒有資料庫 schema、migration 或正式部署變更。正式 LINE 發送仍需人工安全提供有效的 GroupId 與 channel access token，並完成目標群組驗收。
+- 警報輪詢、outbox、retry scheduler、正式派送協調、Webhook、配額與多客戶管理尚未實作。
+
+---
+
 ## 0.0.1 — 調整 Teams JSON 卡片
 
 | 項目 | 內容 |
