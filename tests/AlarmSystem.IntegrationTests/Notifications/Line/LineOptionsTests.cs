@@ -65,6 +65,24 @@ public sealed class LineOptionsTests
             "Validation error exposed the configured credential.");
     }
 
+    [Fact]
+    public void Validate_RejectsBlankTemplatePathWithoutExposingToken()
+    {
+        const string sensitiveToken = "credential-that-must-not-appear";
+        var options = new LineOptions
+        {
+            Enabled = true,
+            GroupId = "test-group",
+            ChannelAccessToken = sensitiveToken,
+            TemplatePath = " ",
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(options.Validate);
+
+        Assert.Contains("TemplatePath", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(sensitiveToken, exception.Message, StringComparison.Ordinal);
+    }
+
     private static LineOptions CreateEnabledOptions(
         string groupId = "test-group",
         string channelAccessToken = "test-credential",

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.IO;
+using System.Text.Json.Nodes;
 using AlarmSystem.Application.Abstractions.Notifications;
 using AlarmSystem.Desktop.Resources;
 using AlarmSystem.Desktop.Services;
@@ -24,8 +26,10 @@ public sealed class LineNotificationTestViewModelTests
         Assert.Equal(AlarmSeverity.High, viewModel.SelectedSeverity);
         Assert.Equal(Strings.DefaultMessage, viewModel.Message);
         Assert.Equal("2026-10-11 16:30:00 +08:00", viewModel.SourceTimestampText);
-        Assert.Contains("等級：HIGH", viewModel.PreviewText, StringComparison.Ordinal);
-        Assert.Contains("Tag：TEST.TAG", viewModel.PreviewText, StringComparison.Ordinal);
+        var bubble = JsonNode.Parse(viewModel.PreviewText)!.AsObject();
+        Assert.Equal("bubble", bubble["type"]!.GetValue<string>());
+        Assert.Equal("#C83C3C", bubble["styles"]!["header"]!["backgroundColor"]!.GetValue<string>());
+        Assert.Contains("TEST.TAG", viewModel.PreviewText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -97,11 +101,11 @@ public sealed class LineNotificationTestViewModelTests
     }
 
     [Fact]
-    public void Preview_RejectsMessageOverOfficialLineLimit()
+    public void Preview_RejectsFlexBubbleOverOfficialLineLimit()
     {
         var viewModel = CreateReadyViewModel();
 
-        viewModel.Message = new string('x', LineAlarmTextRenderer.MaxTextLength + 1);
+        viewModel.Message = new string('界', LineFlexMessageRenderer.MaxBubbleJsonBytes);
 
         Assert.Equal(Strings.ValidationPreviewTooLong, viewModel.PreviewText);
         Assert.False(viewModel.CanSend);
@@ -110,8 +114,8 @@ public sealed class LineNotificationTestViewModelTests
     [Fact]
     public void Preview_IsProducedByOfficialRenderer()
     {
-        var renderer = new LineAlarmTextRenderer();
-        var viewModel = CreateViewModel(renderer: renderer);
+        var templateProvider = CreateTemplateProvider();
+        var viewModel = CreateViewModel(templateProvider: templateProvider);
         var notification = new AlarmNotification(
             Guid.Parse(viewModel.EventIdText),
             viewModel.Tag,
@@ -125,7 +129,20 @@ public sealed class LineNotificationTestViewModelTests
                 CultureInfo.InvariantCulture),
             viewModel.Equipment);
 
-        Assert.Equal(renderer.Render(notification), viewModel.PreviewText);
+        Assert.True(templateProvider.TryRender(notification, out var expectedBubble));
+        Assert.True(JsonNode.DeepEquals(expectedBubble, JsonNode.Parse(viewModel.PreviewText)));
+    }
+
+    [Fact]
+    public void Preview_DisablesSendWhenFlexTemplateIsUnavailable()
+    {
+        var templateProvider = new LineFlexMessageTemplateProvider(Path.Combine(
+            AppContext.BaseDirectory,
+            "missing-flex-template.json"));
+        var viewModel = CreateViewModel(templateProvider: templateProvider);
+
+        Assert.Equal(Strings.ValidationTemplateUnhealthy, viewModel.PreviewText);
+        Assert.False(viewModel.CanSend);
     }
 
     [Fact]
@@ -304,11 +321,14 @@ public sealed class LineNotificationTestViewModelTests
         StubLineNotificationTestService? service = null,
         StubConfirmationService? confirmation = null,
         MutableTimeProvider? timeProvider = null,
-        LineAlarmTextRenderer? renderer = null) => new(
-            renderer ?? new LineAlarmTextRenderer(),
+        LineFlexMessageTemplateProvider? templateProvider = null) => new(
+            templateProvider ?? CreateTemplateProvider(),
             service ?? new StubLineNotificationTestService(),
             confirmation ?? new StubConfirmationService(),
             timeProvider ?? CreateTimeProvider());
+
+    private static LineFlexMessageTemplateProvider CreateTemplateProvider() => new(
+        Path.Combine(AppContext.BaseDirectory, "templates", "line-alarm-card.json"));
 
     private static MutableTimeProvider CreateTimeProvider() => new(
         new DateTimeOffset(2026, 10, 11, 8, 30, 0, TimeSpan.Zero),

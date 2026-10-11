@@ -292,7 +292,7 @@ Localization      # UI culture、顯示時區
 - 時間戳時區、精度、邊界、排序、overlap 與 watermark 前進規則。
 - 去重 fingerprint 的穩定性與不同事件不可誤判為相同。
 - Teams model/JSON rendering：特殊字元、換行、空值、多語與 schema 驗證。
-- LINE 純文字 rendering：欄位 mapping、特殊字元、offset、輸入驗證、未知 enum 與 5,000 UTF-16 上限。
+- LINE Flex Message rendering：模板結構與 placeholder、欄位 mapping、特殊字元、offset、輸入驗證、未知 enum、獨立 Render 及 Bubble 大小上限；保留原純文字 renderer 的相容測試。
 - CSV escaping、固定欄位順序、編碼與輪替命名。
 - 保留 cutoff、曆月/天數策略與最終狀態保護。
 - retry/backoff 上限與永久失敗分類。
@@ -393,11 +393,11 @@ commit、編撰檔案、開發內容、功能、測試結果、設定／相容�
 - 不得建立 LINE 專用警報 DTO，也不得讓 LINE 程式依賴 Teams renderer、Adaptive Card、Teams options 或 Teams 樣板。
 - Worker 同時註冊 Teams 與 LINE 通道，使未來派送端可透過 `IEnumerable<INotificationChannel>` 取得全部通道；LINE 停用不得影響 Teams。
 - 目前沒有真正的警報派送協調、polling、outbox、retry scheduler 或正式 WPF 派送串接；Desktop 僅可提供需人工確認的測試 UI，並且必須直接呼叫正式 LINE adapter，不得虛構或取代正式派送流程。
-- 本階段不新增資料庫 schema，不包含配額／用量／月費管理、tenant 隔離、集中式 LINE gateway、webhook receiver／signature 驗證、`GroupId` 自動發現或維護、回覆訊息、指令機器人、Flex Message、rich menu 或真實 LINE API 自動測試。
+- 本階段不新增資料庫 schema，不包含配額／用量／月費管理、tenant 隔離、集中式 LINE gateway、webhook receiver／signature 驗證、`GroupId` 自動發現或維護、回覆訊息、指令機器人、rich menu 或真實 LINE API 自動測試。
 
 ### 16.2 設定與秘密
 
-- 設定區段固定為 `Notifications:Line`，包含 `Enabled`、`GroupId`、`ChannelAccessToken` 與正值且不超過兩分鐘的 `Timeout`。
+- 設定區段固定為 `Notifications:Line`，包含 `Enabled`、`GroupId`、`ChannelAccessToken`、`TemplatePath` 與正值且不超過兩分鐘的 `Timeout`。
 - LINE 預設停用；停用時允許缺少 `GroupId` 與 token。啟用時兩者都必須非空白。
 - repository 的 `appsettings.json` 只可保存無秘密的停用預設，不得加入 `ChannelAccessToken` placeholder。
 - 正式 token 只可由環境變數（`Notifications__Line__ChannelAccessToken`）、user-secrets 或核准的秘密儲存提供；token、Authorization header、完整 request payload、LINE error response body 與完整 `GroupId` 不得出現在 log、例外、測試輸出、文件範例值或 Git。
@@ -406,11 +406,13 @@ commit、編撰檔案、開發內容、功能、測試結果、設定／相容�
 
 ### 16.3 訊息與 HTTP 契約
 
-- LINE 只傳送固定、可測試的繁體中文純文字，欄位依序為標題、等級、區域、設備、Tag、警報內容、發生時間、目前狀態、Alarm ID、發報系統與立即確認提醒。
+- 正式 LINE 發報使用獨立 `templates/line-alarm-card.json` 模板渲染 Flex Bubble，透過 Push Message 傳送 `type=flex`、`altText=設備警報通知` 與完整 `contents`；欄位依序為標題、等級、區域、設備、Tag、警報內容、發生時間、目前狀態、Alarm ID、發報系統與立即確認提醒。原純文字 renderer 僅保留作相容功能。
+- 模板以 JSON DOM 安全填入資料，每次 Render 建立獨立物件，驗證必要結構與 placeholder，並隨 Worker 與 Desktop 發佈；Desktop 人工測試 UI 預覽同一份 Flex Bubble 且仍須人工確認才可發送。
+- HIGH／MEDIUM／LOW 的 LINE header 色碼分別為 `#C83C3C`／`#D99A22`／`#27865A`；Alarm／Ack 的狀態色碼分別為 `#C83C3C`／`#27865A`。不得以 Teams 色碼名稱直接傳給 LINE。
 - 等級 mapping 為 `High -> HIGH`、`Medium -> MEDIUM`、`Low -> LOW`；狀態 mapping 為 `Alarm -> Active / UnACK`、`Ack -> Acknowledged`。未知 enum 必須明確失敗。
 - Tag 與 Message 採 Teams renderer 相同的非空白驗證並保留 Unicode、引號與換行；空白 Area／Equipment 顯示 `—`。
 - `SourceTimestamp` 使用 invariant culture 的 `yyyy-MM-dd HH:mm:ss zzz` 並保留原 offset；EventId 使用 D 格式。
-- 完整文字不得超過 5,000 個 UTF-16 code units；超過時不得截斷或呼叫 HTTP，回傳永久失敗 `line_message_too_long`。
+- Flex Bubble 的 JSON 不得超過 30 KB；超過時不得截斷或呼叫 HTTP，回傳永久失敗 `line_flex_message_too_large`。模板缺失或無效時不得呼叫 HTTP，回傳永久失敗 `line_template_unhealthy`。
 - 請求使用 POST、JSON、Bearer token；首次請求就必須包含由同一筆 `AlarmNotification.EventId` D 格式穩定產生的 `X-Line-Retry-Key`。
 - 2xx 回傳成功；外部 ID 優先取 `sentMessages[0].id`，否則取 `X-Line-Request-Id`。成功 body 缺欄位或不是預期 JSON，不得改判失敗。
 - 因所有請求都使用穩定 retry key，409 視為先前請求已接受並回傳成功；外部 ID 依序取 `sentMessages[0].id`、`X-Line-Accepted-Request-Id`、`X-Line-Request-Id`。
@@ -421,6 +423,6 @@ commit、編撰檔案、開發內容、功能、測試結果、設定／相容�
 ### 16.4 測試與操作前提
 
 - HTTP 測試必須使用本機 `HttpMessageHandler` stub，不得連線正式 LINE 或 Teams endpoint。
-- 測試至少涵蓋 options 的 enabled／disabled 與 timeout 驗證、renderer 的全部 mapping／輸入／offset／特殊字元／5,000 邊界，以及 HTTP URI、headers、payload、穩定 retry key、2xx／409／4xx／5xx、timeout、transport error、呼叫端取消和不呼叫 HTTP 的情境。
+- 測試至少涵蓋 options 的 enabled／disabled、模板路徑與 timeout 驗證、Flex renderer 的全部 mapping／輸入／offset／特殊字元／模板錯誤／大小上限，以及 HTTP URI、headers、Flex payload、穩定 retry key、2xx／409／4xx／5xx、timeout、transport error、呼叫端取消和不呼叫 HTTP 的情境。
 - LINE Official Account 必須啟用「Allow bot to join group chats」並已加入目標群組；本系統不接收 webhook。
 - `GroupId` 必須先由受控的外部／一次性流程取得，再由部署環境安全提供；真實 `GroupId` 與 token 不得提交至 Git。

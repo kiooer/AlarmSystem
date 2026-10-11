@@ -6,7 +6,7 @@ namespace AlarmSystem.Desktop.Services;
 
 public sealed class LineNotificationTestService(
     IHttpClientFactory httpClientFactory,
-    LineAlarmTextRenderer renderer) : ILineNotificationTestService
+    LineFlexMessageTemplateProvider templateProvider) : ILineNotificationTestService
 {
     public const string HttpClientName = "LineNotificationTest";
 
@@ -28,7 +28,7 @@ public sealed class LineNotificationTestService(
 
         using var httpClient = httpClientFactory.CreateClient(HttpClientName);
         httpClient.Timeout = options.Timeout;
-        var channel = new LineMessagingApiNotificationChannel(httpClient, renderer, options);
+        var channel = new LineMessagingApiNotificationChannel(httpClient, templateProvider, options);
 
         return await channel.SendAsync(notification, cancellationToken);
     }

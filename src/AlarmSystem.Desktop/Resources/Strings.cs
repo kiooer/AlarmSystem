@@ -69,6 +69,7 @@ public static class Strings
     public static string ValidationMessage => GetString(nameof(ValidationMessage));
     public static string ValidationTimestamp => GetString(nameof(ValidationTimestamp));
     public static string ValidationPreviewTooLong => GetString(nameof(ValidationPreviewTooLong));
+    public static string ValidationTemplateUnhealthy => GetString(nameof(ValidationTemplateUnhealthy));
     public static string ValidationPreview => GetString(nameof(ValidationPreview));
     public static string SendConfirmationTitle => GetString(nameof(SendConfirmationTitle));
     public static string SendConfirmationMessageFormat => GetString(nameof(SendConfirmationMessageFormat));

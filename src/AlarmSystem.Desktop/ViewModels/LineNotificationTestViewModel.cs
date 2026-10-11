@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Windows.Input;
 using AlarmSystem.Application.Abstractions.Notifications;
 using AlarmSystem.Desktop.Resources;
@@ -14,7 +15,7 @@ public sealed class LineNotificationTestViewModel : INotifyPropertyChanged
 {
     private const string SourceTimestampFormat = "yyyy-MM-dd HH:mm:ss zzz";
 
-    private readonly LineAlarmTextRenderer renderer;
+    private readonly LineFlexMessageTemplateProvider templateProvider;
     private readonly ILineNotificationTestService testService;
     private readonly ILineSendConfirmationService confirmationService;
     private readonly TimeProvider timeProvider;
@@ -47,12 +48,12 @@ public sealed class LineNotificationTestViewModel : INotifyPropertyChanged
     private CancellationTokenSource? sendCancellation;
 
     public LineNotificationTestViewModel(
-        LineAlarmTextRenderer renderer,
+        LineFlexMessageTemplateProvider templateProvider,
         ILineNotificationTestService testService,
         ILineSendConfirmationService confirmationService,
         TimeProvider timeProvider)
     {
-        this.renderer = renderer;
+        this.templateProvider = templateProvider;
         this.testService = testService;
         this.confirmationService = confirmationService;
         this.timeProvider = timeProvider;
@@ -381,12 +382,23 @@ public sealed class LineNotificationTestViewModel : INotifyPropertyChanged
 
         try
         {
-            PreviewText = renderer.Render(notification);
+            if (!templateProvider.TryRender(notification, out var bubble))
+            {
+                PreviewText = Strings.ValidationTemplateUnhealthy;
+                RaiseCanSendChanged();
+                return;
+            }
+
+            PreviewText = bubble!.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             previewIsValid = true;
+        }
+        catch (LineFlexMessageTooLargeException)
+        {
+            PreviewText = Strings.ValidationPreviewTooLong;
         }
         catch (InvalidOperationException)
         {
-            PreviewText = Strings.ValidationPreviewTooLong;
+            PreviewText = Strings.ValidationPreview;
         }
         catch (ArgumentException)
         {

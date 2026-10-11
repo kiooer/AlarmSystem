@@ -1,4 +1,5 @@
 using System.Net;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -52,6 +53,10 @@ public sealed class LineNotificationTestServiceTests
         Assert.Equal(notification.EventId.ToString("D"), request.RetryKey);
         var payload = JsonNode.Parse(request.Body)!.AsObject();
         Assert.Equal("desktop-test-group", payload["to"]!.GetValue<string>());
+        var message = Assert.Single(payload["messages"]!.AsArray())!.AsObject();
+        Assert.Equal("flex", message["type"]!.GetValue<string>());
+        Assert.Equal("設備警報通知", message["altText"]!.GetValue<string>());
+        Assert.Equal("bubble", message["contents"]!["type"]!.GetValue<string>());
     }
 
     [Theory]
@@ -156,7 +161,10 @@ public sealed class LineNotificationTestServiceTests
     }
 
     private static LineNotificationTestService CreateService(IHttpClientFactory factory) =>
-        new(factory, new LineAlarmTextRenderer());
+        new(factory, new LineFlexMessageTemplateProvider(Path.Combine(
+            AppContext.BaseDirectory,
+            "templates",
+            "line-alarm-card.json")));
 
     private static AlarmNotification CreateNotification() => new(
         Guid.Parse("89e02f25-306c-40f1-a39c-a4ff4536dcce"),

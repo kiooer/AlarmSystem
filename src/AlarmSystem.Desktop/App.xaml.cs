@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using AlarmSystem.Desktop.Services;
 using AlarmSystem.Desktop.ViewModels;
@@ -17,7 +18,8 @@ public partial class App : System.Windows.Application
         var services = new ServiceCollection();
         services.AddHttpClient(LineNotificationTestService.HttpClientName);
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<LineAlarmTextRenderer>();
+        services.AddSingleton(_ => new LineFlexMessageTemplateProvider(
+            Path.Combine(AppContext.BaseDirectory, "templates", "line-alarm-card.json")));
         services.AddSingleton<ILineNotificationTestService, LineNotificationTestService>();
         services.AddSingleton<ILineSendConfirmationService, LineSendConfirmationService>();
         services.AddTransient<LineNotificationTestViewModel>();

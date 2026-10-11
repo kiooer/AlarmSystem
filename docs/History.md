@@ -14,6 +14,47 @@
 
 ---
 
+## 0.0.3 — Line 警報卡片及 WPF 發送測試
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-11 |
+| 時間 | 23:44:26 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `Line警報卡片及WPF發送測試成功`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `AGENTS.md`、`README.md`、`docs/History.md`、`templates/line-alarm-card.json`
+- `src/AlarmSystem.Infrastructure/Notifications/Line/LineFlexMessageRenderer.cs`、`LineFlexMessageTemplateProvider.cs`、`LineMessagingApiNotificationChannel.cs`、`LineOptions.cs`
+- `src/AlarmSystem.Worker/AlarmSystem.Worker.csproj`、`Program.cs`、`appsettings.json`
+- `src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj`、`App.xaml.cs`、`Resources/Strings.cs`、`Resources/Strings.resx`、`Services/LineNotificationTestService.cs`、`ViewModels/LineNotificationTestViewModel.cs`
+- `tests/AlarmSystem.IntegrationTests/AlarmSystem.IntegrationTests.csproj`、`Notifications/Line/LineFlexMessageRendererTests.cs`、`LineMessagingApiNotificationChannelTests.cs`、`LineOptionsTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/AlarmSystem.Desktop.Tests.csproj`、`Services/LineNotificationTestServiceTests.cs`、`ViewModels/LineNotificationTestViewModelTests.cs`
+
+### 開發內容與功能
+
+- 將既有 LINE Push Message 正式通道改為 Flex Message；Teams 與 LINE 仍直接共用 `AlarmNotification` 等既有通知契約，原 LINE 純文字 renderer 保留作相容功能。
+- 新增獨立 Flex Bubble JSON 樣板、JSON DOM renderer 與可重新載入的樣板 provider；依警報等級及事件狀態填入色碼、欄位與完整 EventId，防止超過 Bubble 30 KB 上限或無效樣板時發送 HTTP。
+- Worker 與 Desktop 載入同一份樣板；專案設定將樣板複製至 build／publish 輸出。WPF 人工測試 UI 改為預覽 Flex Bubble，發送仍透過正式 LINE channel、保留原有秘密保護及人工確認機制。
+- 更新 LINE 設定、README 操作說明與 AGENTS 開發基線，未修改 Teams 樣板或 Teams 發送程式。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln`：成功；NuGet 弱點資料來源無法連線，出現 `NU1900` 警告。
+- `dotnet build AlarmSystem.sln --no-restore --verbosity minimal -m:1`：成功，0 error；同樣有 `NU1900` 警告。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --verbosity minimal -m:1`：111 passed、0 failed、0 skipped（整合測試 82、Desktop 測試 29）。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore` 與 `git diff --check`：通過。
+- Worker `dotnet publish` 成功，發佈目錄中的 LINE 樣板與來源雜湊一致；變更檔案的常見秘密模式掃描未發現真實 token、Bearer 值或 GroupId。
+- 自動 HTTP 測試使用本機 stub；未進行真實 LINE 發送或正式 LINE 用戶端卡片驗收。
+
+### 設定、相容性與尚待確認
+
+- LINE 新增無秘密的 `TemplatePath` 設定；部署時仍需安全提供 GroupId 與 channel access token。正式 LINE 發報格式由純文字改為 Flex Message，接收端顯示需在實際 LINE 群組人工驗收。
+- 無資料庫 schema、migration、polling、outbox 或正式派送協調流程變更；Webhook、配額、tenant 與中央 gateway 仍未實作。
+
+---
+
 ## 0.0.2 — 加入 LINE 發送及測試 WPF
 
 | 項目 | 內容 |

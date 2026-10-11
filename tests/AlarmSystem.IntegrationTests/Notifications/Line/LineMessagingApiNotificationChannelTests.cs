@@ -44,8 +44,12 @@ public sealed class LineMessagingApiNotificationChannelTests
         var payload = JsonNode.Parse(request.Body)!.AsObject();
         Assert.Equal("test-group", payload["to"]!.GetValue<string>());
         var message = Assert.Single(payload["messages"]!.AsArray())!.AsObject();
-        Assert.Equal("text", message["type"]!.GetValue<string>());
-        Assert.Contains("Tag：TEST.TAG", message["text"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.Equal("flex", message["type"]!.GetValue<string>());
+        Assert.Equal("設備警報通知", message["altText"]!.GetValue<string>());
+        var bubble = message["contents"]!.AsObject();
+        Assert.Equal("bubble", bubble["type"]!.GetValue<string>());
+        Assert.Equal("#D99A22", bubble["styles"]!["header"]!["backgroundColor"]!.GetValue<string>());
+        Assert.Contains("TEST.TAG", bubble.ToJsonString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -228,18 +232,34 @@ public sealed class LineMessagingApiNotificationChannelTests
     }
 
     [Fact]
-    public async Task SendAsync_DoesNotCallHttpWhenMessageIsTooLong()
+    public async Task SendAsync_DoesNotCallHttpWhenFlexBubbleIsTooLarge()
     {
         var handler = new StubHttpMessageHandler(
             (_, _) => throw new InvalidOperationException("HTTP must not be called."));
         var channel = CreateChannel(handler);
-        var notification = CreateNotificationWithRenderedLength(
-            LineAlarmTextRenderer.MaxTextLength + 1);
+        var notification = CreateNotification(new string('界', LineFlexMessageRenderer.MaxBubbleJsonBytes));
 
         var result = await channel.SendAsync(notification, CancellationToken.None);
 
         Assert.Equal(NotificationSendStatus.PermanentFailure, result.Status);
-        Assert.Equal("line_message_too_long", result.ErrorCode);
+        Assert.Equal("line_flex_message_too_large", result.ErrorCode);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task SendAsync_DoesNotCallHttpWhenTemplateIsUnhealthy()
+    {
+        var handler = new StubHttpMessageHandler(
+            (_, _) => throw new InvalidOperationException("HTTP must not be called."));
+        var channel = new LineMessagingApiNotificationChannel(
+            new HttpClient(handler),
+            new LineFlexMessageTemplateProvider(Path.Combine(AppContext.BaseDirectory, "missing-flex-template.json")),
+            CreateOptions());
+
+        var result = await channel.SendAsync(CreateNotification(), CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.PermanentFailure, result.Status);
+        Assert.Equal("line_template_unhealthy", result.ErrorCode);
         Assert.Empty(handler.Requests);
     }
 
@@ -258,7 +278,10 @@ public sealed class LineMessagingApiNotificationChannelTests
         StubHttpMessageHandler handler,
         LineOptions? options = null) => new(
             new HttpClient(handler),
-            new LineAlarmTextRenderer(),
+            new LineFlexMessageTemplateProvider(Path.Combine(
+                AppContext.BaseDirectory,
+                "templates",
+                "line-alarm-card.json")),
             options ?? CreateOptions());
 
     private static LineOptions CreateOptions() => new()
@@ -278,13 +301,6 @@ public sealed class LineMessagingApiNotificationChannelTests
         message,
         new DateTimeOffset(2026, 10, 10, 8, 0, 0, TimeSpan.Zero),
         "Test equipment");
-
-    private static AlarmNotification CreateNotificationWithRenderedLength(int targetLength)
-    {
-        var renderer = new LineAlarmTextRenderer();
-        var fixedLength = renderer.Render(CreateNotification("界")).Length - 1;
-        return CreateNotification(new string('界', targetLength - fixedLength));
-    }
 
     private sealed class StubHttpMessageHandler(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responder)

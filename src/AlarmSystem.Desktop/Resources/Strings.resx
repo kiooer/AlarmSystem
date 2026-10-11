@@ -34,7 +34,7 @@
   <data name="SeverityHigh" xml:space="preserve"><value>高（High）</value></data>
   <data name="SeverityMedium" xml:space="preserve"><value>中（Medium）</value></data>
   <data name="SeverityLow" xml:space="preserve"><value>低（Low）</value></data>
-  <data name="PreviewSection" xml:space="preserve"><value>LINE 訊息預覽</value></data>
+  <data name="PreviewSection" xml:space="preserve"><value>LINE Flex Message JSON 預覽</value></data>
   <data name="UpdatePreviewButton" xml:space="preserve"><value>更新預覽</value></data>
   <data name="NewTestDataButton" xml:space="preserve"><value>產生新測試資料</value></data>
   <data name="SendSection" xml:space="preserve"><value>傳送控制</value></data>
@@ -71,7 +71,8 @@
   <data name="ValidationTag" xml:space="preserve"><value>Tag 不得為空白。</value></data>
   <data name="ValidationMessage" xml:space="preserve"><value>警報內容不得為空白。</value></data>
   <data name="ValidationTimestamp" xml:space="preserve"><value>發生時間必須是包含有效 offset 的日期時間。</value></data>
-  <data name="ValidationPreviewTooLong" xml:space="preserve"><value>LINE 訊息超過 5,000 個 UTF-16 code units，請縮短內容。</value></data>
+  <data name="ValidationPreviewTooLong" xml:space="preserve"><value>LINE Flex 卡片超過 30 KB，請縮短內容。</value></data>
+  <data name="ValidationTemplateUnhealthy" xml:space="preserve"><value>LINE Flex 卡片樣板缺失或無效，請檢查部署檔案。</value></data>
   <data name="ValidationPreview" xml:space="preserve"><value>無法產生 LINE 訊息預覽，請檢查輸入欄位。</value></data>
   <data name="SendConfirmationTitle" xml:space="preserve"><value>確認真實 LINE 發送</value></data>
   <data name="SendConfirmationMessageFormat" xml:space="preserve"><value>這會將測試訊息實際傳送至外部 LINE 群組。&#xA;&#xA;目的地：{0}&#xA;EventId：{1}&#xA;警報等級：{2}&#xA;Tag：{3}&#xA;&#xA;是否繼續？</value></data>

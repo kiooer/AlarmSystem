@@ -36,6 +36,7 @@ var lineOptions = new LineOptions
     Enabled = bool.TryParse(lineSection["Enabled"], out var lineEnabled) && lineEnabled,
     GroupId = lineSection["GroupId"] ?? string.Empty,
     ChannelAccessToken = lineSection["ChannelAccessToken"] ?? string.Empty,
+    TemplatePath = lineSection["TemplatePath"] ?? "templates/line-alarm-card.json",
     Timeout = TimeSpan.FromSeconds(
         int.TryParse(lineSection["TimeoutSeconds"], out var lineTimeoutSeconds)
             ? lineTimeoutSeconds
@@ -44,7 +45,8 @@ var lineOptions = new LineOptions
 
 lineOptions.Validate();
 builder.Services.AddSingleton(lineOptions);
-builder.Services.AddSingleton<LineAlarmTextRenderer>();
+builder.Services.AddSingleton(_ => new LineFlexMessageTemplateProvider(
+    Path.GetFullPath(lineOptions.TemplatePath, AppContext.BaseDirectory)));
 builder.Services.AddHttpClient<LineMessagingApiNotificationChannel>(client =>
 {
     client.Timeout = lineOptions.Timeout;

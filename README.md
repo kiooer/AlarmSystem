@@ -40,7 +40,7 @@ Adaptive Card 支援版本與 rate limit 尚待確認，因此目前測試只使
 
 LINE 是與 Teams 平行、可插拔的 `INotificationChannel` 實作，兩者直接接收同一份
 `AlarmNotification`，但 LINE 不依賴 Teams renderer、Adaptive Card 或 Teams 設定。LINE adapter
-將警報渲染為固定格式的繁體中文純文字，並呼叫 LINE Messaging API Push Message 的官方固定 HTTPS
+以獨立的 `templates/line-alarm-card.json` 樣板，將相同警報資料渲染為 LINE Flex Message Bubble，並呼叫 LINE Messaging API Push Message 的官方固定 HTTPS
 endpoint。每次請求第一次就使用 `AlarmNotification.EventId` 的 D 格式作為 `X-Line-Retry-Key`，相同事件
 重送時會維持相同 key。
 
@@ -57,29 +57,29 @@ Notifications__Line__Enabled=true
 Notifications__Line__GroupId
 Notifications__Line__ChannelAccessToken
 Notifications__Line__TimeoutSeconds=10
+Notifications__Line__TemplatePath=templates/line-alarm-card.json
 ```
 
 本機開發可對 `src/AlarmSystem.Worker` 使用 .NET user-secrets 設定同名的冒號分隔鍵；正式部署則使用環境變數或核准的秘密儲存。不要在 shell history、文件或版本控制中留下實際值。
 
 啟用時 `GroupId` 與 `ChannelAccessToken` 必須有值；timeout 必須大於零且不超過兩分鐘。repository
-內的 `appsettings.json` 只保留停用且不含 token 的安全預設。LINE 純文字上限為 5,000 個 UTF-16
-code units，超過時會在呼叫 HTTP 前回傳永久失敗，不會截斷警報內容。
+內的 `appsettings.json` 只保留停用且不含 token 的安全預設。Flex Bubble JSON 超過 30 KB 時會在呼叫 HTTP 前回傳永久失敗，不會截斷警報內容。樣板缺失或無效時同樣不會送出。樣板會複製到 Worker 與 Desktop 的輸出及發佈目錄；Windows Service 以執行檔目錄為基準載入預設相對路徑。原 `LineAlarmTextRenderer` 保留作相容功能，正式 LINE channel 發送 Flex Message。
 
 目前 Worker 尚未具有警報輪詢、outbox、retry scheduler 或派送協調流程；此次只建立並註冊 LINE
 adapter。也未包含配額／用量／月費管理、tenant 隔離、集中式 LINE gateway、webhook receiver、回覆訊息、
-指令機器人、Flex Message 或 rich menu。所有自動測試均使用本機 `HttpMessageHandler` stub，不會連線正式
+指令機器人或 rich menu。所有自動測試均使用本機 `HttpMessageHandler` stub，不會連線正式
 LINE 或 Teams endpoint。
 
 ## LINE 發報測試 UI
 
-Desktop 提供人工測試與診斷畫面，使用正式的 `LineAlarmTextRenderer` 與
+Desktop 提供人工測試與診斷畫面，使用正式的 `LineFlexMessageRenderer` 與
 `LineMessagingApiNotificationChannel`；它不會自行組裝 LINE HTTP request，也不是正式警報派送流程。啟動方式：
 
 ```text
 dotnet run --project src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj
 ```
 
-啟動後可輸入既有 LINE 群組的 `GroupId`、channel access token、timeout 與測試警報內容，預覽實際純文字。
+啟動後可輸入既有 LINE 群組的 `GroupId`、channel access token、timeout 與測試警報內容，預覽將送出的 Flex Bubble JSON。
 按下發送前必須先勾選真實外部發送確認，接著在第二次確認對話框核對遮罩後的目的地與事件資料；取消任一階段都不會呼叫 LINE。發送中可按「取消」。
 
 此 UI 的發送會呼叫真實 LINE Messaging API，因此只有在 LINE Official Account 已啟用

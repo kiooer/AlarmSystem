@@ -25,4 +25,10 @@
     <ProjectReference Include="..\..\src\AlarmSystem.Infrastructure\AlarmSystem.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\templates\line-alarm-card.json"
+             Link="templates\line-alarm-card.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

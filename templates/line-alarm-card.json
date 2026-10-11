@@ -1,0 +1,86 @@
+{
+  "type": "bubble",
+  "size": "mega",
+  "styles": {
+    "header": {
+      "backgroundColor": "{{lineColor}}"
+    },
+    "footer": {
+      "backgroundColor": "#F7F8FA"
+    }
+  },
+  "header": {
+    "type": "box",
+    "layout": "vertical",
+    "paddingAll": "16px",
+    "spacing": "sm",
+    "contents": [
+      { "type": "text", "text": "🔔 設備警報通知", "color": "#FFFFFF", "weight": "bold", "size": "lg", "wrap": true },
+      { "type": "text", "text": "警報等級：{{severityLabel}}", "color": "#FFFFFF", "weight": "bold", "size": "md", "wrap": true }
+    ]
+  },
+  "body": {
+    "type": "box",
+    "layout": "vertical",
+    "paddingAll": "16px",
+    "spacing": "md",
+    "contents": [
+      {
+        "type": "box", "layout": "horizontal", "contents": [
+          { "type": "text", "text": "區域", "color": "#555555", "flex": 2 },
+          { "type": "text", "text": "{{areaDisplay}}", "flex": 5, "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "horizontal", "contents": [
+          { "type": "text", "text": "設備", "color": "#555555", "flex": 2 },
+          { "type": "text", "text": "{{equipmentDisplay}}", "flex": 5, "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "horizontal", "contents": [
+          { "type": "text", "text": "Tag", "color": "#555555", "flex": 2 },
+          { "type": "text", "text": "{{tag}}", "flex": 5, "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "vertical", "spacing": "xs", "contents": [
+          { "type": "text", "text": "警報內容", "color": "#555555", "size": "sm" },
+          { "type": "text", "text": "{{message}}", "weight": "bold", "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "horizontal", "contents": [
+          { "type": "text", "text": "發生時間", "color": "#555555", "flex": 2 },
+          { "type": "text", "text": "{{sourceTimeDisplay}}", "flex": 5, "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "horizontal", "contents": [
+          { "type": "text", "text": "目前狀態", "color": "#555555", "flex": 2 },
+          { "type": "text", "text": "{{statusLabel}}", "color": "{{statusColor}}", "weight": "bold", "flex": 5, "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "vertical", "spacing": "xs", "contents": [
+          { "type": "text", "text": "Alarm ID", "color": "#555555", "size": "sm" },
+          { "type": "text", "text": "{{eventId}}", "wrap": true }
+        ]
+      },
+      {
+        "type": "box", "layout": "horizontal", "contents": [
+          { "type": "text", "text": "發報系統", "color": "#555555", "flex": 2 },
+          { "type": "text", "text": "AlarmGateway", "flex": 5, "wrap": true }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "type": "box",
+    "layout": "vertical",
+    "paddingAll": "12px",
+    "contents": [
+      { "type": "text", "text": "ⓘ 請立即確認設備狀況", "color": "#C83C3C", "weight": "bold", "wrap": true }
+    ]
+  }
+}

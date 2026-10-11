@@ -14,16 +14,16 @@ public sealed class LineMessagingApiNotificationChannel : INotificationChannel
         UriKind.Absolute);
 
     private readonly HttpClient httpClient;
-    private readonly LineAlarmTextRenderer renderer;
+    private readonly LineFlexMessageTemplateProvider templateProvider;
     private readonly LineOptions options;
 
     public LineMessagingApiNotificationChannel(
         HttpClient httpClient,
-        LineAlarmTextRenderer renderer,
+        LineFlexMessageTemplateProvider templateProvider,
         LineOptions options)
     {
         this.httpClient = httpClient;
-        this.renderer = renderer;
+        this.templateProvider = templateProvider;
         this.options = options;
         options.Validate();
     }
@@ -41,9 +41,17 @@ public sealed class LineMessagingApiNotificationChannel : INotificationChannel
             return NotificationSendResult.Permanent("channel_disabled");
         }
 
-        if (!renderer.TryRender(notification, out var text))
+        JsonObject? bubble;
+        try
         {
-            return NotificationSendResult.Permanent("line_message_too_long");
+            if (!templateProvider.TryRender(notification, out bubble))
+            {
+                return NotificationSendResult.Permanent("line_template_unhealthy");
+            }
+        }
+        catch (LineFlexMessageTooLargeException)
+        {
+            return NotificationSendResult.Permanent("line_flex_message_too_large");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)
@@ -55,8 +63,9 @@ public sealed class LineMessagingApiNotificationChannel : INotificationChannel
                 {
                     new
                     {
-                        type = "text",
-                        text,
+                        type = "flex",
+                        altText = "設備警報通知",
+                        contents = bubble,
                     },
                 },
             }),

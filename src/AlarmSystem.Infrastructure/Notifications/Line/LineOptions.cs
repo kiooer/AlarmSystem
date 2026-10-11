@@ -10,10 +10,17 @@ public sealed class LineOptions
 
     public string ChannelAccessToken { get; init; } = string.Empty;
 
+    public string TemplatePath { get; init; } = "templates/line-alarm-card.json";
+
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(10);
 
     public void Validate()
     {
+        if (string.IsNullOrWhiteSpace(TemplatePath))
+        {
+            throw new InvalidOperationException($"{SectionName}:TemplatePath is required.");
+        }
+
         if (Timeout <= TimeSpan.Zero || Timeout > TimeSpan.FromMinutes(2))
         {
             throw new InvalidOperationException(
