@@ -68,6 +68,8 @@ public sealed class LineNotificationTestViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public string ManualTestLicenseNotice => Strings.ManualTestLicenseNotice;
+
     public string ApiEndpoint => LineMessagingApiNotificationChannel.Endpoint.AbsoluteUri;
 
     public string GroupId

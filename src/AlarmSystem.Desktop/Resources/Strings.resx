@@ -14,6 +14,7 @@
   </resheader>
   <data name="WindowTitle" xml:space="preserve"><value>LINE 發報測試</value></data>
   <data name="ToolNotice" xml:space="preserve"><value>此工具會在明確確認後進行真實外部發送，僅供人工測試與診斷，不是正式警報派送流程。</value></data>
+  <data name="ManualTestLicenseNotice" xml:space="preserve"><value>此頁為手動測試／功能展示，刻意不檢查 Dongle License；測試成功不代表正式發報已取得授權。</value></data>
   <data name="ConnectionSection" xml:space="preserve"><value>LINE 連線設定</value></data>
   <data name="GroupIdLabel" xml:space="preserve"><value>GroupId</value></data>
   <data name="ChannelAccessTokenLabel" xml:space="preserve"><value>Channel Access Token</value></data>

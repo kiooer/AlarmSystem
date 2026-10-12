@@ -1,9 +1,30 @@
+using AlarmSystem.Application.Abstractions.Licensing;
 using AlarmSystem.Application.Abstractions.Notifications;
+using AlarmSystem.Application.Notifications;
+using AlarmSystem.Infrastructure.Licensing;
 using AlarmSystem.Infrastructure.Notifications.Line;
 using AlarmSystem.Infrastructure.Notifications.Teams;
 using AlarmSystem.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+var dongleSection = builder.Configuration.GetSection(DongleLicenseOptions.SectionName);
+var featureMappingSection = dongleSection.GetSection("FeatureMapping");
+var dongleOptions = new DongleLicenseOptions
+{
+    Provider = dongleSection["Provider"] ?? "Unconfigured",
+    CheckTimeout = TimeSpan.FromSeconds(
+        int.TryParse(dongleSection["CheckTimeoutSeconds"], out var licenseTimeoutSeconds)
+            ? licenseTimeoutSeconds
+            : 5),
+    FeatureMapping = Enum.GetValues<NotificationFeature>().ToDictionary(
+        feature => feature,
+        feature => featureMappingSection[feature.ToString()] ?? string.Empty),
+};
+
+dongleOptions.Validate();
+builder.Services.AddSingleton(dongleOptions);
+builder.Services.AddSingleton<INotificationLicenseAuthorizer, UnavailableDongleLicenseAuthorizer>();
 
 var teamsSection = builder.Configuration.GetSection(TeamsOptions.SectionName);
 var endpointValue = teamsSection["Endpoint"];
@@ -28,7 +49,10 @@ builder.Services.AddHttpClient<TeamsWebhookNotificationChannel>(client =>
     client.Timeout = teamsOptions.Timeout;
 });
 builder.Services.AddTransient<INotificationChannel>(services =>
-    services.GetRequiredService<TeamsWebhookNotificationChannel>());
+    new LicensedNotificationChannel(
+        services.GetRequiredService<TeamsWebhookNotificationChannel>(),
+        services.GetRequiredService<INotificationLicenseAuthorizer>(),
+        NotificationFeature.Teams));
 
 var lineSection = builder.Configuration.GetSection(LineOptions.SectionName);
 var lineOptions = new LineOptions
@@ -52,7 +76,10 @@ builder.Services.AddHttpClient<LineMessagingApiNotificationChannel>(client =>
     client.Timeout = lineOptions.Timeout;
 });
 builder.Services.AddTransient<INotificationChannel>(services =>
-    services.GetRequiredService<LineMessagingApiNotificationChannel>());
+    new LicensedNotificationChannel(
+        services.GetRequiredService<LineMessagingApiNotificationChannel>(),
+        services.GetRequiredService<INotificationLicenseAuthorizer>(),
+        NotificationFeature.Line));
 builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();

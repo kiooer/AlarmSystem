@@ -22,6 +22,35 @@
 
 任何外部服務秘密都不會加入 repository 設定。
 
+## Dongle License 與正式通知邊界
+
+Worker 供目前及未來正式派送流程解析的 `IEnumerable<INotificationChannel>`，只包含經
+`LicensedNotificationChannel` 包裝的 LINE 與 Teams 通道。每次正式發送都先檢查各自的
+`NotificationFeature`；只有通道本身 `Enabled` 且對應 Dongle feature 授權成功時，才會進入樣板渲染及 HTTP
+transport。LINE、Teams 的授權彼此獨立，並已預留 Email feature；目前沒有 Email adapter。
+
+尚未取得 Dongle 廠商規格，因此目前 Worker 使用明確的 fail-closed authorizer，所有正式 LINE／Teams
+發送都會在 transport 前回傳永久失敗 `license_dongle_unavailable`。此狀態不代表 Dongle SDK 已完成或硬體可用。
+未授權結果只使用下列非敏感錯誤碼：
+
+- `license_feature_not_licensed`
+- `license_expired`
+- `license_dongle_unavailable`
+- `license_validation_failed`
+
+`Licensing:Dongle` 只保存 provider 名稱、檢查 timeout 與 LINE／Teams／Email feature mapping 等非敏感設定。
+repository 預設為 `Provider=Unconfigured` 且 feature code 留空，不包含序號、授權 blob 或虛構的 feature code。
+正式整合前仍須由廠商提供並確認：
+
+- SDK、runtime、driver 與可再散佈條款。
+- LINE、Teams、Email 的正式 feature code 與授權內容格式。
+- 簽章／真偽驗證方式、授權過期判定及系統時間異常的處理語意。
+- Dongle 未插入、執行中拔除、重新插入、讀取 timeout 與 SDK 錯誤的回傳語意。
+- Windows 與 Windows Server 支援版本、service account 存取權限，以及 x86／x64 架構與部署需求。
+
+取得規格後應只替換 Infrastructure 的 Dongle authorizer，不改變 Application decorator、通知 transport 或 Desktop
+測試工具的邊界。任何 Dongle 序號、原始授權內容及 SDK 原始回應都不得寫入 log、CSV 或版本控制。
+
 ## Teams 發報模組
 
 目前已建立第一階段的 Teams webhook adapter：
@@ -38,8 +67,9 @@ Adaptive Card 支援版本與 rate limit 尚待確認，因此目前測試只使
 
 ## LINE 群組警報模組
 
-LINE 是與 Teams 平行、可插拔的 `INotificationChannel` 實作，兩者直接接收同一份
-`AlarmNotification`，但 LINE 不依賴 Teams renderer、Adaptive Card 或 Teams 設定。LINE adapter
+LINE transport 是與 Teams 平行、可插拔的 `INotificationChannel` 實作，兩者直接接收同一份
+`AlarmNotification`，但 LINE 不依賴 Teams renderer、Adaptive Card 或 Teams 設定。Worker 對正式流程只暴露各自的
+授權 decorator，不把原始 transport 當作 `INotificationChannel` 註冊。LINE adapter
 以獨立的 `templates/line-alarm-card.json` 樣板，將相同警報資料渲染為 LINE Flex Message Bubble，並呼叫 LINE Messaging API Push Message 的官方固定 HTTPS
 endpoint。每次請求第一次就使用 `AlarmNotification.EventId` 的 D 格式作為 `X-Line-Retry-Key`，相同事件
 重送時會維持相同 key。
@@ -81,6 +111,10 @@ dotnet run --project src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj
 
 啟動後可輸入既有 LINE 群組的 `GroupId`、channel access token、timeout 與測試警報內容，預覽將送出的 Flex Bubble JSON。
 按下發送前必須先勾選真實外部發送確認，接著在第二次確認對話框核對遮罩後的目的地與事件資料；取消任一階段都不會呼叫 LINE。發送中可按「取消」。
+
+此互動式 Desktop 頁面是刻意隔離的手動測試／功能展示路徑，直接建立未包裝的 LINE transport，不檢查 Dongle
+License；測試成功不代表正式發報已取得授權。此例外沒有 `DemoMode` 或 Worker 設定開關，也不可供 Worker、背景服務、
+排程、API 或未來 outbox 使用。未來 Teams／Email 測試頁若建立，也必須維持相同的 Desktop-only 邊界。
 
 此 UI 的發送會呼叫真實 LINE Messaging API，因此只有在 LINE Official Account 已啟用
 **Allow bot to join group chats**、bot 已加入目標群組，而且操作者明確決定進行實際測試時才能使用。`GroupId`

@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
+using AlarmSystem.Application.Abstractions.Licensing;
 using AlarmSystem.Application.Abstractions.Notifications;
 using AlarmSystem.Desktop.Services;
 using AlarmSystem.Domain.Events;
@@ -12,6 +13,16 @@ namespace AlarmSystem.Desktop.Tests.Services;
 
 public sealed class LineNotificationTestServiceTests
 {
+    [Fact]
+    public void Constructor_DoesNotAcceptFormalLicenseAuthorizer()
+    {
+        var constructor = Assert.Single(typeof(LineNotificationTestService).GetConstructors());
+
+        Assert.DoesNotContain(
+            constructor.GetParameters(),
+            parameter => parameter.ParameterType == typeof(INotificationLicenseAuthorizer));
+    }
+
     [Fact]
     public async Task SendAsync_UsesOfficialChannelRequestContract()
     {

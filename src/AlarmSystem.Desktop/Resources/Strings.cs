@@ -11,6 +11,7 @@ public static class Strings
 
     public static string WindowTitle => GetString(nameof(WindowTitle));
     public static string ToolNotice => GetString(nameof(ToolNotice));
+    public static string ManualTestLicenseNotice => GetString(nameof(ManualTestLicenseNotice));
     public static string ConnectionSection => GetString(nameof(ConnectionSection));
     public static string GroupIdLabel => GetString(nameof(GroupIdLabel));
     public static string ChannelAccessTokenLabel => GetString(nameof(ChannelAccessTokenLabel));

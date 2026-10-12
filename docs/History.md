@@ -14,6 +14,53 @@
 
 ---
 
+## 0.0.5 — Dongle License 正式通知閘門
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-12 |
+| 時間 | 10:32:54 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `加入授權管控`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/History.md`
+- `src/AlarmSystem.Application/Abstractions/Licensing/NotificationFeature.cs`、`LicenseAuthorizationFailureCodes.cs`、`LicenseAuthorizationResult.cs`、`INotificationLicenseAuthorizer.cs`
+- `src/AlarmSystem.Application/Notifications/LicensedNotificationChannel.cs`
+- `src/AlarmSystem.Infrastructure/Licensing/DongleLicenseOptions.cs`、`UnavailableDongleLicenseAuthorizer.cs`
+- `src/AlarmSystem.Worker/Program.cs`、`appsettings.json`
+- `src/AlarmSystem.Desktop/MainWindow.xaml`、`Resources/Strings.cs`、`Resources/Strings.resx`、`ViewModels/LineNotificationTestViewModel.cs`
+- `tests/AlarmSystem.Application.Tests/Licensing/LicenseAuthorizationResultTests.cs`、`Notifications/LicensedNotificationChannelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Licensing/DongleLicenseOptionsTests.cs`、`Notifications/Line/LicensedLineNotificationChannelTests.cs`、`Notifications/Teams/LicensedTeamsNotificationChannelTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/Services/LineNotificationTestServiceTests.cs`、`ViewModels/LineNotificationTestViewModelTests.cs`
+
+### 開發內容與功能
+
+- 新增 LINE、Teams 與預留 Email 的正式通知 feature，以及受控、非敏感的授權結果與失敗碼契約。
+- 新增 `LicensedNotificationChannel` decorator；正式發送先檢查 feature 授權，拒絕或授權檢查例外時 fail closed，不呼叫內層 renderer／HTTP transport，呼叫端取消則原樣向上傳遞。
+- Worker 保留原始 LINE／Teams typed transport，但 `IEnumerable<INotificationChannel>` 只註冊授權包裝後的通道；LINE 與 Teams 使用獨立 feature。
+- 在尚無 Dongle SDK 與廠商規格時加入 `UnavailableDongleLicenseAuthorizer`，所有正式通知回傳 `license_dongle_unavailable`；沒有假造 SDK、driver、授權內容或 feature code。
+- Desktop LINE 人工測試頁維持直接使用原始 transport，不注入 Dongle authorizer；新增本地化警語，明示展示成功不代表正式發報授權，既有雙重確認、遮罩、取消與 token 不持久化行為不變。
+
+### 測試與驗證
+
+- `dotnet test AlarmSystem.sln --no-restore --verbosity minimal -m:1`：145 passed、0 failed、0 skipped（Application 17、Integration 97、Desktop 31）；Domain 測試專案目前沒有測試案例。
+- `dotnet build AlarmSystem.sln --no-restore --verbosity minimal -m:1`：成功，0 error、2 個 `NU1900` 警告；警告原因為 NuGet 弱點資料來源無法連線。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore`：通過；初次檢查發現的兩處測試檔換行格式已修正。
+- Worker `appsettings.json` JSON 解析與 `git diff --check`：通過。
+- 變更範圍的常見 GroupId、Bearer token 與 JWT 模式掃描：未發現疑似真實秘密。
+- 所有新增 HTTP 測試均使用本機 `HttpMessageHandler` stub；未連線正式 LINE、Teams 或 Dongle 裝置。未執行 migration dry-run，因本次沒有資料庫 schema 或 migration 變更。
+
+### 設定、相容性與尚待確認
+
+- 新增無秘密的 `Licensing:Dongle` 設定區段，集中 provider、檢查 timeout 及 LINE／Teams／Email feature mapping；預設 provider 為 `Unconfigured`，feature code 保持空白。
+- 正式 Worker 通知新增 fail-closed 相容性邊界：在真實 Dongle adapter 完成前，即使通道 `Enabled` 也不會送出；Desktop 人工展示路徑不受此限制且沒有 `DemoMode` 開關。
+- 待廠商提供 SDK／driver、feature code、簽章與驗證流程、過期與拔除語意、Windows 支援版本、service account 權限及 x86／x64 部署需求。
+- 沒有新增 Email adapter、警報輪詢、outbox、retry scheduler、資料庫 schema、migration 或秘密；既有 LINE／Teams transport 契約未變更。
+
+---
+
 ## 0.0.4 — 補充 LINE Flex renderer 註解
 
 | 項目 | 內容 |

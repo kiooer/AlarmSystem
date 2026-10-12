@@ -13,6 +13,16 @@ namespace AlarmSystem.Desktop.Tests.ViewModels;
 public sealed class LineNotificationTestViewModelTests
 {
     [Fact]
+    public void ManualTestLicenseNotice_ExplainsDesktopOnlyLicenseException()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.Equal(Strings.ManualTestLicenseNotice, viewModel.ManualTestLicenseNotice);
+        Assert.Contains("手動測試", viewModel.ManualTestLicenseNotice, StringComparison.Ordinal);
+        Assert.Contains("不代表正式發報已取得授權", viewModel.ManualTestLicenseNotice, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Constructor_InitializesExpectedTestDataAndPreview()
     {
         var timeProvider = CreateTimeProvider();
