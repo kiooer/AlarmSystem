@@ -14,6 +14,35 @@
 
 ---
 
+## 0.0.4 — 補充 LINE Flex renderer 註解
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-12 |
+| 時間 | 08:21:00 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `補充LINE Flex renderer註解`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `src/AlarmSystem.Infrastructure/Notifications/Line/LineFlexMessageRenderer.cs`
+- `docs/History.md`
+
+### 開發內容與功能
+
+- 為 `LineFlexMessageRenderer.Render` 補充 XML 文件註解，說明輸入、輸出、例外情境，以及每次渲染使用深拷貝與 JSON DOM 填值的安全保證。
+
+### 測試與驗證
+
+- `dotnet build src/AlarmSystem.Infrastructure/AlarmSystem.Infrastructure.csproj --no-restore`：命令回報失敗，但輸出為 0 warning、0 error，未提供可診斷原因。
+- `git diff --check`：於提交前執行。
+
+### 設定、相容性與尚待確認
+
+- 僅文件註解變更；沒有程式行為、資料庫 schema、設定、部署、秘密或相容性變更。
+
+---
+
 ## 0.0.3 — Line 警報卡片及 WPF 發送測試
 
 | 項目 | 內容 |

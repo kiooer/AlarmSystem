@@ -51,6 +51,20 @@ public sealed partial class LineFlexMessageRenderer
         return new LineFlexMessageRenderer(File.ReadAllText(path));
     }
 
+    /// <summary>
+    /// Renders a standalone LINE Flex Bubble from the validated template and one alarm notification.
+    /// </summary>
+    /// <param name="notification">The notification whose display values populate the template placeholders.</param>
+    /// <returns>A deep-cloned Bubble JSON object, safe for the caller to include in a LINE push request.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="notification"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The notification tag or message is blank.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The severity or event type is not supported by LINE.</exception>
+    /// <exception cref="LineFlexMessageTooLargeException">The rendered Bubble exceeds LINE's 30 KB limit.</exception>
+    /// <remarks>
+    /// The template is deep-cloned for every call so placeholder replacement cannot mutate the shared,
+    /// validated template or affect a concurrent render operation. Placeholder values are set through
+    /// the JSON DOM, preserving special characters without string-based JSON interpolation.
+    /// </remarks>
     public JsonObject Render(AlarmNotification notification)
     {
         ArgumentNullException.ThrowIfNull(notification);
