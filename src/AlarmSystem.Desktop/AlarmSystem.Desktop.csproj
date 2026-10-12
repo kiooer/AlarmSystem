@@ -23,6 +23,10 @@
              Link="templates\line-alarm-card.json"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\templates\email-alarm.html"
+             Link="templates\email-alarm.html"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

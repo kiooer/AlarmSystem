@@ -2,18 +2,18 @@
 
 圖控警報系統的 C#/.NET solution 骨架。
 
-目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter 與 LINE 人工測試 UI；尚未實作 iFIX/ODBC、SQL Server、警報輪詢、去重、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
+目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter，以及 LINE／Email 人工測試 UI；尚未實作 iFIX/ODBC、SQL Server、警報輪詢、去重、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
 
 ## 專案
 
 - `AlarmSystem.Domain`：領域模型與規則。
 - `AlarmSystem.Application`：應用流程與外部介面抽象。
-- `AlarmSystem.Infrastructure`：資料庫、iFIX、Teams、CSV 與安全 adapter。
+- `AlarmSystem.Infrastructure`：Teams、LINE、Email SMTP、未來資料庫／iFIX／CSV 與安全 adapter。
 - `AlarmSystem.Worker`：背景服務入口。
 - `AlarmSystem.Desktop`：WPF 管理介面入口。
 - `AlarmSystem.Domain.Tests`：領域單元測試。
 - `AlarmSystem.Application.Tests`：應用層單元測試。
-- `AlarmSystem.Desktop.Tests`：WPF LINE 測試工具的 ViewModel 與 service 測試。
+- `AlarmSystem.Desktop.Tests`：WPF LINE／Email 測試工具的 ViewModel 與 service 測試。
 - `AlarmSystem.IntegrationTests`：基礎設施與跨模組整合測試。
 
 ## 目前狀態
@@ -25,11 +25,12 @@
 ## Dongle License 與正式通知邊界
 
 Worker 供目前及未來正式派送流程解析的 `IEnumerable<INotificationChannel>`，只包含經
-`LicensedNotificationChannel` 包裝的 LINE 與 Teams 通道。每次正式發送都先檢查各自的
+`LicensedNotificationChannel` 包裝的 LINE、Teams 與 Email 通道。每次正式發送都先檢查各自的
 `NotificationFeature`；只有通道本身 `Enabled` 且對應 Dongle feature 授權成功時，才會進入樣板渲染及 HTTP
-transport。LINE、Teams 的授權彼此獨立，並已預留 Email feature；目前沒有 Email adapter。
+或 SMTP transport。LINE、Teams、Email 的授權彼此獨立；Email 使用既有數值不變的
+`NotificationFeature.Email`，沒有建立第二套授權契約。
 
-尚未取得 Dongle 廠商規格，因此目前 Worker 使用明確的 fail-closed authorizer，所有正式 LINE／Teams
+尚未取得 Dongle 廠商規格，因此目前 Worker 與 Desktop Email 測試頁使用明確的 fail-closed authorizer，所有正式 LINE／Teams／Email
 發送都會在 transport 前回傳永久失敗 `license_dongle_unavailable`。此狀態不代表 Dongle SDK 已完成或硬體可用。
 未授權結果只使用下列非敏感錯誤碼：
 
@@ -100,6 +101,53 @@ adapter。也未包含配額／用量／月費管理、tenant 隔離、集中式
 指令機器人或 rich menu。所有自動測試均使用本機 `HttpMessageHandler` stub，不會連線正式
 LINE 或 Teams endpoint。
 
+## Email SMTP 警報模組
+
+Email 是與 Teams／LINE 平行的 `INotificationChannel`。正式 Worker 只把
+`LicensedNotificationChannel(NotificationFeature.Email)` 暴露給 `IEnumerable<INotificationChannel>`；原始
+`EmailSmtpNotificationChannel` 僅以具體型別註冊供 decorator 使用。授權拒絕或授權檢查非取消例外時，不會讀取
+Email 樣板、建立 SMTP client、連線或寄送。因目前 provider 固定 fail closed，即使 Email 設定完整且 `Enabled=true`，
+也會先得到 `license_dongle_unavailable`，不代表已具備真實 Dongle 發送能力。
+
+SMTP transport 使用 MailKit／MimeKit，支援固定的三種安全模式：`StartTls`（要求 STARTTLS）、`SslTls`
+（連線即 TLS）與 `None`。不會在 TLS 失敗後自動降級。`None` 只允許搭配
+`AllowUnencryptedInternalRelay=true`、`AuthenticationMode=None` 的明確內部 Relay 設定；部署人員仍須確認該 host
+確實位於核准的內部網路。密碼驗證只允許用於加密模式。Email 可設定多位收件人，對外只透過
+`DestinationReference` 顯示收件群組代碼，不以此欄位暴露完整收件清單。
+
+部署設定位於 `Notifications:Email`。repository 預設停用且不包含 `Password`；正式密碼只可由環境變數
+`Notifications__Email__Password`、.NET user-secrets 或核准的秘密儲存提供。以下欄位皆為鍵名示例，不包含可用主機、
+帳號、地址或密碼：
+
+```text
+Notifications__Email__Enabled=true
+Notifications__Email__Host
+Notifications__Email__Port=587
+Notifications__Email__SecurityMode=StartTls
+Notifications__Email__AllowUnencryptedInternalRelay=false
+Notifications__Email__AuthenticationMode=Password
+Notifications__Email__Username
+Notifications__Email__Password
+Notifications__Email__SenderAddress
+Notifications__Email__SenderDisplayName=AlarmSystem
+Notifications__Email__Recipients__0
+Notifications__Email__DestinationReference
+Notifications__Email__TimeoutSeconds=15
+Notifications__Email__TemplatePath=templates/email-alarm.html
+```
+
+啟用時會驗證 Host、Port、傳輸安全、驗證模式、寄件者、至少一位收件人、非敏感群組代碼，以及 1–120 秒的
+timeout；設定不完整時 Worker 會在啟動組裝階段拒絕設定，不會嘗試連線。HTML 內容由獨立的
+`templates/email-alarm.html` 載入，所有警報動態文字均先做 HTML encoding，並同時建立純文字備援。樣板缺失、
+placeholder 不完整或訊息無效時回傳永久失敗，不會建立 SMTP client。Email adapter 只允許 `ALARM`；`ACK`
+回傳 `email_ack_not_notified` 且不連線。尚未實作的正式 Dispatcher 未來仍須負責新警報、未 ACK 重發條件、上限、
+去重及 outbox，adapter 本身不承擔排程。
+
+SMTP 結果分類如下：連線、協定或 I/O 暫時故障、timeout 與 SMTP 4xx 為可重試；驗證失敗、TLS／不支援設定、
+郵件格式錯誤與 SMTP 5xx 為永久失敗。SMTP 沒有 LINE retry key 等伺服器端冪等保證；若伺服器已接受郵件後，
+在斷線或回應處理階段發生錯誤，呼叫端可能無法確定結果，未來 Dispatcher 重試時存在重複寄送風險，需由 delivery
+ledger 清楚保留每次嘗試。
+
 ## LINE 發報測試 UI
 
 Desktop 提供人工測試與診斷畫面，使用正式的 `LineFlexMessageRenderer` 與
@@ -112,9 +160,11 @@ dotnet run --project src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj
 啟動後可輸入既有 LINE 群組的 `GroupId`、channel access token、timeout 與測試警報內容，預覽將送出的 Flex Bubble JSON。
 按下發送前必須先勾選真實外部發送確認，接著在第二次確認對話框核對遮罩後的目的地與事件資料；取消任一階段都不會呼叫 LINE。發送中可按「取消」。
 
-此互動式 Desktop 頁面是刻意隔離的手動測試／功能展示路徑，直接建立未包裝的 LINE transport，不檢查 Dongle
+LINE 分頁是刻意隔離的手動測試／功能展示路徑，直接建立未包裝的 LINE transport，不檢查 Dongle
 License；測試成功不代表正式發報已取得授權。此例外沒有 `DemoMode` 或 Worker 設定開關，也不可供 Worker、背景服務、
-排程、API 或未來 outbox 使用。未來 Teams／Email 測試頁若建立，也必須維持相同的 Desktop-only 邊界。
+排程、API 或未來 outbox 使用。Email 分頁依本模組需求採不同安全邊界：連線測試與實際寄送都使用既有
+`INotificationLicenseAuthorizer`，實際寄送再透過 `LicensedNotificationChannel(NotificationFeature.Email)`；沒有 UI
+繞過設定。
 
 此 UI 的發送會呼叫真實 LINE Messaging API，因此只有在 LINE Official Account 已啟用
 **Allow bot to join group chats**、bot 已加入目標群組，而且操作者明確決定進行實際測試時才能使用。`GroupId`
@@ -130,3 +180,24 @@ License；測試成功不代表正式發報已取得授權。此例外沒有 `De
 5. 關閉視窗，確認應用程式正常結束；token 不會保留。
 
 測試 UI 不接收 webhook、不探索 `GroupId`，也不代表正式警報輪詢、outbox、retry scheduler 或派送協調已完成；配額、用量、tenant 與集中式 gateway 同樣不在範圍內。
+
+## Email SMTP 測試 UI
+
+以同一個 Desktop 命令啟動後切換至「Email SMTP 測試」分頁。可輸入 SMTP host／port、安全模式、驗證方式、
+寄件者、收件人、收件群組代碼、timeout 與測試 ALARM，並預覽主旨、純文字與 HTML。密碼保留在 `PasswordBox`，
+只在按下測試或寄送時傳入 service，不寫入 ViewModel、設定或 log，關閉視窗時清除。
+
+「測試 SMTP 連線」會在 Email Dongle feature 授權成功後執行 connect、必要的 authenticate 與 disconnect，絕不呼叫
+SMTP send。「寄送測試 Email」另需勾選真實寄送確認，再於對話框確認非敏感群組代碼、寄件者、收件人數、EventId
+與 Tag。兩種操作都可取消且都受 License Gate 控制。以 repository 目前的
+`UnavailableDongleLicenseAuthorizer` 執行時，頁面會顯示 `license_dongle_unavailable`，不會連線 SMTP；必須等真實
+Dongle provider 完成，或只在自動測試中注入測試 authorizer，才能驗證授權成功路徑。
+
+不連線 SMTP 的人工 smoke test：
+
+1. 啟動 Desktop 並切換 Email 分頁，確認 HTML／純文字預覽與 ALARM-only 警語可見。
+2. 確認 Email 授權狀態為 `license_dongle_unavailable`，按鈕操作不會連線 SMTP。
+3. 確認密碼欄位遮罩顯示，缺少必要欄位、密碼或人工確認時寄送按鈕不可用。
+4. 關閉視窗並重新開啟，確認 SMTP 密碼與輸入設定沒有被保存。
+
+所有 Email 自動測試只使用記憶體內的 `IEmailSmtpClient` fake，不會連線或寄送至任何真實 SMTP server。

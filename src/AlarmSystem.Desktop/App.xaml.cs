@@ -1,7 +1,10 @@
 using System.IO;
 using System.Windows;
+using AlarmSystem.Application.Abstractions.Licensing;
 using AlarmSystem.Desktop.Services;
 using AlarmSystem.Desktop.ViewModels;
+using AlarmSystem.Infrastructure.Licensing;
+using AlarmSystem.Infrastructure.Notifications.Email;
 using AlarmSystem.Infrastructure.Notifications.Line;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,6 +26,19 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ILineNotificationTestService, LineNotificationTestService>();
         services.AddSingleton<ILineSendConfirmationService, LineSendConfirmationService>();
         services.AddTransient<LineNotificationTestViewModel>();
+
+        var dongleOptions = new DongleLicenseOptions();
+        dongleOptions.Validate();
+        services.AddSingleton(dongleOptions);
+        services.AddSingleton<INotificationLicenseAuthorizer, UnavailableDongleLicenseAuthorizer>();
+        services.AddSingleton<EmailMessageBuilder>();
+        services.AddSingleton(provider => new EmailTemplateProvider(
+            Path.Combine(AppContext.BaseDirectory, "templates", "email-alarm.html"),
+            provider.GetRequiredService<EmailMessageBuilder>()));
+        services.AddSingleton<IEmailSmtpClientFactory, MailKitEmailSmtpClientFactory>();
+        services.AddSingleton<IEmailNotificationTestService, EmailNotificationTestService>();
+        services.AddSingleton<IEmailSendConfirmationService, EmailSendConfirmationService>();
+        services.AddTransient<EmailNotificationTestViewModel>();
         services.AddTransient<MainWindow>();
 
         serviceProvider = services.BuildServiceProvider();

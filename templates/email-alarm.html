@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>{{severityLabel}} 設備警報通知</title>
+</head>
+<body style="margin:0;padding:24px;background:#f5f7fa;font-family:Segoe UI,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;margin:0 auto;border-collapse:collapse;background:#ffffff;border:1px solid #d0d5dd;">
+    <tr>
+      <td style="padding:18px 22px;background:{{severityColor}};color:#ffffff;font-size:22px;font-weight:700;">
+        {{severityLabel}}｜設備警報通知
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:22px;">
+        <p style="margin:0 0 18px;font-size:17px;line-height:1.6;">{{message}}</p>
+        <table role="presentation" cellspacing="0" cellpadding="8" style="width:100%;border-collapse:collapse;">
+          <tr><th align="left" style="width:150px;border-bottom:1px solid #eaecf0;">設備</th><td style="border-bottom:1px solid #eaecf0;">{{equipmentDisplay}}</td></tr>
+          <tr><th align="left" style="border-bottom:1px solid #eaecf0;">區域</th><td style="border-bottom:1px solid #eaecf0;">{{areaDisplay}}</td></tr>
+          <tr><th align="left" style="border-bottom:1px solid #eaecf0;">Tag</th><td style="border-bottom:1px solid #eaecf0;">{{tag}}</td></tr>
+          <tr><th align="left" style="border-bottom:1px solid #eaecf0;">發生時間</th><td style="border-bottom:1px solid #eaecf0;">{{sourceTimeDisplay}}</td></tr>
+          <tr><th align="left">Event ID</th><td>{{eventId}}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

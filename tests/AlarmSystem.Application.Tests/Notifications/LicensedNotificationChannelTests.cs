@@ -154,6 +154,45 @@ public sealed class LicensedNotificationChannelTests
     }
 
     [Fact]
+    public async Task SendAsync_AuthorizesEmailIndependentlyFromLineAndTeams()
+    {
+        var authorizer = new StubLicenseAuthorizer
+        {
+            Handler = (feature, _) => Task.FromResult(
+                feature == NotificationFeature.Email
+                    ? LicenseAuthorizationResult.Authorized
+                    : LicenseAuthorizationResult.Denied(
+                        LicenseAuthorizationFailureCodes.FeatureNotLicensed)),
+        };
+        var emailInner = new StubNotificationChannel("Email", "email-group");
+        var lineInner = new StubNotificationChannel("Line", "line-destination");
+        var teamsInner = new StubNotificationChannel("Teams", "teams-destination");
+        var email = new LicensedNotificationChannel(
+            emailInner,
+            authorizer,
+            NotificationFeature.Email);
+        var line = new LicensedNotificationChannel(
+            lineInner,
+            authorizer,
+            NotificationFeature.Line);
+        var teams = new LicensedNotificationChannel(
+            teamsInner,
+            authorizer,
+            NotificationFeature.Teams);
+
+        var emailResult = await email.SendAsync(CreateNotification(), CancellationToken.None);
+        var lineResult = await line.SendAsync(CreateNotification(), CancellationToken.None);
+        var teamsResult = await teams.SendAsync(CreateNotification(), CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.Succeeded, emailResult.Status);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, lineResult.Status);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, teamsResult.Status);
+        Assert.Equal(1, emailInner.CallCount);
+        Assert.Equal(0, lineInner.CallCount);
+        Assert.Equal(0, teamsInner.CallCount);
+    }
+
+    [Fact]
     public void Metadata_ComesFromInnerChannel()
     {
         var channel = new LicensedNotificationChannel(

@@ -14,6 +14,59 @@
 
 ---
 
+## 0.0.6 — Email SMTP 通知與授權測試介面
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-12 |
+| 時間 | 11:30:03 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `加入email發報功能`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/History.md`、`templates/email-alarm.html`
+- `src/AlarmSystem.Infrastructure/AlarmSystem.Infrastructure.csproj`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailOptions.cs`、`EmailSecurityMode.cs`、`EmailAuthenticationMode.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailMessageContent.cs`、`EmailMessageBuilder.cs`、`EmailTemplateProvider.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/IEmailSmtpClient.cs`、`MailKitEmailSmtpClient.cs`、`EmailSmtpErrorClassifier.cs`、`EmailSmtpNotificationChannel.cs`
+- `src/AlarmSystem.Worker/AlarmSystem.Worker.csproj`、`Program.cs`、`appsettings.json`
+- `src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj`、`App.xaml.cs`、`MainWindow.xaml`、`MainWindow.xaml.cs`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/Services/IEmailNotificationTestService.cs`、`EmailNotificationTestService.cs`、`IEmailSendConfirmationService.cs`、`EmailSendConfirmationService.cs`
+- `src/AlarmSystem.Desktop/ViewModels/EmailNotificationTestViewModel.cs`
+- `tests/AlarmSystem.Application.Tests/Notifications/LicensedNotificationChannelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/AlarmSystem.IntegrationTests.csproj`、`Notifications/Email/EmailOptionsTests.cs`、`EmailTemplateProviderTests.cs`、`EmailSmtpNotificationChannelTests.cs`、`LicensedEmailNotificationChannelTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/AlarmSystem.Desktop.Tests.csproj`、`Services/EmailNotificationTestServiceTests.cs`、`ViewModels/EmailNotificationTestViewModelTests.cs`
+
+### 開發內容與功能
+
+- 新增 MailKit／MimeKit SMTP adapter，直接實作既有 `INotificationChannel`，支援 STARTTLS、連線即 TLS、明確允許的無驗證內部未加密 Relay、帳號密碼驗證、多收件人、HTML 與純文字 alternative body、timeout 及呼叫端取消。
+- 新增獨立 HTML 樣板、placeholder 完整性檢查與 Email message builder；所有警報動態 HTML 文字均先編碼，HIGH／MEDIUM／LOW 使用受控色碼，樣板缺失或無效時不建立 SMTP client。
+- Email adapter 僅接受 `ALARM`；`ACK` 回傳 `email_ack_not_notified` 且不連線。SMTP 4xx、timeout 與傳輸錯誤分類為可重試，SMTP 5xx、驗證、TLS、格式與設定錯誤分類為永久失敗。
+- Worker 註冊原始 Email concrete transport，供 `IEnumerable<INotificationChannel>` 解析的則是現有 `LicensedNotificationChannel` 與 `NotificationFeature.Email` 包裝；Email 授權失敗不影響 LINE／Teams 的獨立 feature。
+- Desktop 新增 Email SMTP 分頁、樣板預覽、授權狀態、無寄信連線測試、雙重人工確認與實際測試寄送。Email 連線與寄送均受既有 License Gate 控制；LINE 分頁原有的 Desktop-only 授權例外不變。
+- SMTP 密碼只由 `PasswordBox` 在操作時傳入，不加入可 binding 的 ViewModel 字串屬性、不持久化，並在關閉視窗時清除。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln`：成功，所有專案均為最新狀態。
+- `dotnet build AlarmSystem.sln`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln`：204 passed、0 failed、0 skipped（Application 18、Integration 140、Desktop 46）；Domain 測試專案目前沒有測試案例。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：通過；沙箱內首次執行因 named pipe 權限失敗，允許必要權限後完成驗證。
+- `git diff --check`、Worker `appsettings.json` JSON 解析、Desktop `Strings.resx`／`MainWindow.xaml` XML 解析：通過。
+- Email SMTP 測試全部使用記憶體內 `IEmailSmtpClient` fake；LINE／Teams 既有 HTTP 測試維持本機 `HttpMessageHandler` stub。未連線真實 SMTP、LINE、Teams 或 Dongle 裝置，未執行 migration dry-run，因本次沒有 schema 或 migration。
+
+### 設定、相容性與尚待確認
+
+- Infrastructure 新增 `MailKit` 4.18.1 套件參考；Worker 新增預設停用、無密碼的 `Notifications:Email` 設定與 Email 樣板輸出／發佈內容。SMTP 密碼仍須由環境變數、user-secrets 或核准的秘密儲存提供。
+- 正式 Email 發送條件為通道 `Enabled`、Email Dongle feature 授權、SMTP 設定有效三者同時成立。現有 `UnavailableDongleLicenseAuthorizer` 仍會回傳 `license_dongle_unavailable`，沒有新增正式環境繞過開關。
+- SMTP 沒有 LINE retry key 等伺服器端冪等保證；伺服器接受後若回應或斷線結果不明，未來重試可能重複寄送，須由正式 Dispatcher／delivery ledger 留存每次嘗試並提供人工判讀。
+- 待完成真實 Dongle SDK／driver／Email feature code、SMTP 正式 host 與網路政策、憑證信任、寄件網域與 relay 規則、收件群組、流量限制及目標環境驗收；亦尚未實作正式 Dispatcher、未 ACK 重發判斷、上限、outbox 或 retry scheduler。
+- 沒有修改共用警報／`NotificationSendResult` 契約、既有 NotificationFeature 數值、LINE／Teams 核心 transport、資料庫 schema 或 migration；沒有提交 SMTP 密碼、Dongle 金鑰或其他秘密。
+
+---
+
 ## 0.0.5 — Dongle License 正式通知閘門
 
 | 項目 | 內容 |

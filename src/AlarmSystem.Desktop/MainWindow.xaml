@@ -44,8 +44,10 @@
         </Style>
     </Window.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
+    <TabControl>
+      <TabItem Header="{x:Static resources:Strings.LineTabHeader}">
+       <ScrollViewer VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="20">
             <TextBlock Text="{x:Static resources:Strings.ToolNotice}"
                        Margin="0,0,0,8"
@@ -295,5 +297,275 @@
                 </Grid>
             </GroupBox>
         </StackPanel>
-    </ScrollViewer>
+       </ScrollViewer>
+      </TabItem>
+
+      <TabItem x:Name="EmailTab"
+               Header="{x:Static resources:Strings.EmailTabHeader}">
+       <ScrollViewer VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20">
+          <TextBlock Text="{x:Static resources:Strings.EmailToolNotice}"
+                     Margin="0,0,0,14"
+                     Padding="12"
+                     TextWrapping="Wrap"
+                     FontWeight="SemiBold"
+                     Foreground="#7A271A"
+                     Background="#FEF0C7" />
+
+          <GroupBox Header="{x:Static resources:Strings.EmailConnectionSection}"
+                    IsEnabled="{Binding IsNotBusy}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="235" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <Label Grid.Row="0" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailHostLabel}" />
+              <TextBox Grid.Row="0" Grid.Column="1"
+                       Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="1" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailPortLabel}" />
+              <TextBox Grid.Row="1" Grid.Column="1"
+                       Text="{Binding SmtpPortText, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="2" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailSecurityModeLabel}" />
+              <ComboBox Grid.Row="2" Grid.Column="1"
+                        ItemsSource="{Binding SecurityModes}"
+                        DisplayMemberPath="DisplayName"
+                        SelectedValuePath="Value"
+                        SelectedValue="{Binding SelectedSecurityMode}" />
+              <CheckBox Grid.Row="3" Grid.Column="1"
+                        Margin="5"
+                        Content="{x:Static resources:Strings.EmailAllowUnencryptedRelay}"
+                        IsEnabled="{Binding IsUnencryptedRelay}"
+                        IsChecked="{Binding AllowUnencryptedInternalRelay}" />
+              <Label Grid.Row="4" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailAuthenticationModeLabel}" />
+              <ComboBox Grid.Row="4" Grid.Column="1"
+                        ItemsSource="{Binding AuthenticationModes}"
+                        DisplayMemberPath="DisplayName"
+                        SelectedValuePath="Value"
+                        SelectedValue="{Binding SelectedAuthenticationMode}" />
+              <Label Grid.Row="5" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailUsernameLabel}" />
+              <TextBox Grid.Row="5" Grid.Column="1"
+                       IsEnabled="{Binding UsesPasswordAuthentication}"
+                       Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="6" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailPasswordLabel}" />
+              <PasswordBox x:Name="EmailPasswordBox"
+                           Grid.Row="6" Grid.Column="1"
+                           Margin="4"
+                           Padding="7,5"
+                           IsEnabled="{Binding UsesPasswordAuthentication}"
+                           PasswordChanged="EmailPasswordBox_OnPasswordChanged" />
+              <TextBlock Grid.Row="7" Grid.Column="1"
+                         Margin="5,0,5,7"
+                         TextWrapping="Wrap"
+                         Foreground="#475467"
+                         Text="{x:Static resources:Strings.EmailPasswordHint}" />
+              <Label Grid.Row="8" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailSenderAddressLabel}" />
+              <TextBox Grid.Row="8" Grid.Column="1"
+                       Text="{Binding SenderAddress, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="9" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailSenderDisplayNameLabel}" />
+              <TextBox Grid.Row="9" Grid.Column="1"
+                       Text="{Binding SenderDisplayName, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="10" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailRecipientsLabel}" />
+              <TextBox Grid.Row="10" Grid.Column="1"
+                       MinHeight="62"
+                       AcceptsReturn="True"
+                       TextWrapping="Wrap"
+                       VerticalScrollBarVisibility="Auto"
+                       Text="{Binding RecipientsText, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="11" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailDestinationReferenceLabel}" />
+              <TextBox Grid.Row="11" Grid.Column="1"
+                       Text="{Binding DestinationReference, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="12" Grid.Column="0"
+                     Content="{x:Static resources:Strings.TimeoutSecondsLabel}" />
+              <TextBox Grid.Row="12" Grid.Column="1"
+                       Text="{Binding TimeoutSecondsText, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+          </GroupBox>
+
+          <GroupBox Header="{x:Static resources:Strings.EmailLicenseSection}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="235" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <Label Grid.Row="0" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailLicenseStatusLabel}" />
+              <TextBlock Grid.Row="0" Grid.Column="1"
+                         Margin="5"
+                         TextWrapping="Wrap"
+                         Text="{Binding LicenseStatus}" />
+              <Button Grid.Row="0" Grid.Column="2"
+                      Content="{x:Static resources:Strings.EmailRefreshLicenseButton}"
+                      IsEnabled="{Binding IsNotBusy}"
+                      Click="RefreshEmailLicenseButton_OnClick" />
+              <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                      HorizontalAlignment="Right"
+                      Content="{x:Static resources:Strings.EmailTestConnectionButton}"
+                      IsEnabled="{Binding CanTestConnection}"
+                      Click="TestEmailConnectionButton_OnClick" />
+            </Grid>
+          </GroupBox>
+
+          <GroupBox Header="{x:Static resources:Strings.AlarmSection}"
+                    IsEnabled="{Binding IsNotBusy}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="190" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                         Margin="5,0,5,8"
+                         TextWrapping="Wrap"
+                         Foreground="#475467"
+                         Text="{x:Static resources:Strings.EmailAlarmOnlyNotice}" />
+              <Label Grid.Row="1" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EventIdLabel}" />
+              <TextBox Grid.Row="1" Grid.Column="1"
+                       Text="{Binding EventIdText, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="2" Grid.Column="0"
+                     Content="{x:Static resources:Strings.TagLabel}" />
+              <TextBox Grid.Row="2" Grid.Column="1"
+                       Text="{Binding Tag, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="3" Grid.Column="0"
+                     Content="{x:Static resources:Strings.AreaLabel}" />
+              <TextBox Grid.Row="3" Grid.Column="1"
+                       Text="{Binding Area, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="4" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EquipmentLabel}" />
+              <TextBox Grid.Row="4" Grid.Column="1"
+                       Text="{Binding Equipment, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="5" Grid.Column="0"
+                     Content="{x:Static resources:Strings.SeverityLabel}" />
+              <ComboBox Grid.Row="5" Grid.Column="1"
+                        ItemsSource="{Binding SeverityOptions}"
+                        DisplayMemberPath="DisplayName"
+                        SelectedValuePath="Value"
+                        SelectedValue="{Binding SelectedSeverity}" />
+              <Label Grid.Row="6" Grid.Column="0"
+                     Content="{x:Static resources:Strings.MessageLabel}" />
+              <TextBox Grid.Row="6" Grid.Column="1"
+                       MinHeight="68"
+                       AcceptsReturn="True"
+                       TextWrapping="Wrap"
+                       Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" />
+              <Label Grid.Row="7" Grid.Column="0"
+                     Content="{x:Static resources:Strings.SourceTimestampLabel}" />
+              <TextBox Grid.Row="7" Grid.Column="1"
+                       Text="{Binding SourceTimestampText, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+          </GroupBox>
+
+          <GroupBox Header="{x:Static resources:Strings.EmailPreviewSection}">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Top"
+                          Orientation="Horizontal"
+                          HorizontalAlignment="Right">
+                <Button Content="{x:Static resources:Strings.NewTestDataButton}"
+                        Command="{Binding NewTestDataCommand}" />
+                <Button Content="{x:Static resources:Strings.UpdatePreviewButton}"
+                        Command="{Binding UpdatePreviewCommand}" />
+              </StackPanel>
+              <TextBox MinHeight="260"
+                       IsReadOnly="True"
+                       AcceptsReturn="True"
+                       TextWrapping="NoWrap"
+                       VerticalScrollBarVisibility="Auto"
+                       HorizontalScrollBarVisibility="Auto"
+                       Text="{Binding PreviewText}" />
+            </DockPanel>
+          </GroupBox>
+
+          <GroupBox Header="{x:Static resources:Strings.EmailSendSection}">
+            <StackPanel>
+              <CheckBox Margin="5,4,5,10"
+                        Content="{x:Static resources:Strings.EmailRealSendConfirmationCheckbox}"
+                        IsChecked="{Binding IsRealSendConfirmed}" />
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="{x:Static resources:Strings.CancelButton}"
+                        Command="{Binding CancelCommand}" />
+                <Button Style="{StaticResource WarningButtonStyle}"
+                        Content="{x:Static resources:Strings.EmailSendTestButton}"
+                        IsEnabled="{Binding CanSend}"
+                        IsDefault="False"
+                        Click="SendEmailButton_OnClick" />
+              </StackPanel>
+            </StackPanel>
+          </GroupBox>
+
+          <GroupBox Header="{x:Static resources:Strings.EmailResultSection}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="190" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <Label Grid.Row="0" Grid.Column="0"
+                     Content="{x:Static resources:Strings.StatusMessageLabel}" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Margin="5"
+                         TextWrapping="Wrap" FontWeight="SemiBold"
+                         Text="{Binding StatusMessage}" />
+              <Label Grid.Row="1" Grid.Column="0"
+                     Content="{x:Static resources:Strings.SendStatusLabel}" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Margin="5"
+                         Text="{Binding LastSendStatusDisplay}" />
+              <Label Grid.Row="2" Grid.Column="0"
+                     Content="{x:Static resources:Strings.ErrorCodeLabel}" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Margin="5"
+                         Text="{Binding LastErrorCodeDisplay}" />
+              <Label Grid.Row="3" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailSmtpStatusCodeLabel}" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Margin="5"
+                         Text="{Binding LastSmtpStatusCodeDisplay}" />
+            </Grid>
+          </GroupBox>
+        </StackPanel>
+       </ScrollViewer>
+      </TabItem>
+    </TabControl>
 </Window>
