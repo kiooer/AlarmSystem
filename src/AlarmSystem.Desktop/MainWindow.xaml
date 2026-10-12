@@ -374,8 +374,7 @@
                            Grid.Row="6" Grid.Column="1"
                            Margin="4"
                            Padding="7,5"
-                           IsEnabled="{Binding UsesPasswordAuthentication}"
-                           PasswordChanged="EmailPasswordBox_OnPasswordChanged" />
+                           IsEnabled="{Binding UsesPasswordAuthentication}" />
               <TextBlock Grid.Row="7" Grid.Column="1"
                          Margin="5,0,5,7"
                          TextWrapping="Wrap"
@@ -408,29 +407,9 @@
             </Grid>
           </GroupBox>
 
-          <GroupBox Header="{x:Static resources:Strings.EmailLicenseSection}">
+          <GroupBox Header="{x:Static resources:Strings.EmailConnectionTestSection}">
             <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="235" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-              </Grid.RowDefinitions>
-              <Label Grid.Row="0" Grid.Column="0"
-                     Content="{x:Static resources:Strings.EmailLicenseStatusLabel}" />
-              <TextBlock Grid.Row="0" Grid.Column="1"
-                         Margin="5"
-                         TextWrapping="Wrap"
-                         Text="{Binding LicenseStatus}" />
-              <Button Grid.Row="0" Grid.Column="2"
-                      Content="{x:Static resources:Strings.EmailRefreshLicenseButton}"
-                      IsEnabled="{Binding IsNotBusy}"
-                      Click="RefreshEmailLicenseButton_OnClick" />
-              <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
-                      HorizontalAlignment="Right"
+              <Button HorizontalAlignment="Right"
                       Content="{x:Static resources:Strings.EmailTestConnectionButton}"
                       IsEnabled="{Binding CanTestConnection}"
                       Click="TestEmailConnectionButton_OnClick" />
@@ -512,7 +491,7 @@
                        TextWrapping="NoWrap"
                        VerticalScrollBarVisibility="Auto"
                        HorizontalScrollBarVisibility="Auto"
-                       Text="{Binding PreviewText}" />
+                       Text="{Binding PreviewText, Mode=OneWay}" />
             </DockPanel>
           </GroupBox>
 

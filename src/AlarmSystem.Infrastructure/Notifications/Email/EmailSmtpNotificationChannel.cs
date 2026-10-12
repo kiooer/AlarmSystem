@@ -21,7 +21,6 @@ public sealed class EmailSmtpNotificationChannel : INotificationChannel
         ArgumentNullException.ThrowIfNull(templateProvider);
         ArgumentNullException.ThrowIfNull(messageBuilder);
         ArgumentNullException.ThrowIfNull(options);
-        options.Validate();
 
         this.clientFactory = clientFactory;
         this.templateProvider = templateProvider;
@@ -38,6 +37,15 @@ public sealed class EmailSmtpNotificationChannel : INotificationChannel
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(notification);
+
+        try
+        {
+            options.Validate();
+        }
+        catch (InvalidOperationException)
+        {
+            return NotificationSendResult.Permanent("email_configuration_invalid");
+        }
 
         if (!options.Enabled)
         {
@@ -78,6 +86,15 @@ public sealed class EmailSmtpNotificationChannel : INotificationChannel
     public async Task<NotificationSendResult> TestConnectionAsync(
         CancellationToken cancellationToken)
     {
+        try
+        {
+            options.ValidateSmtpConnection();
+        }
+        catch (InvalidOperationException)
+        {
+            return NotificationSendResult.Permanent("email_configuration_invalid");
+        }
+
         if (!options.Enabled)
         {
             return NotificationSendResult.Permanent("channel_disabled");

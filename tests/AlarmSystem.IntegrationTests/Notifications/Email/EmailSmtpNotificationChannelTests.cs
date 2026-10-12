@@ -123,6 +123,28 @@ public sealed class EmailSmtpNotificationChannelTests
     }
 
     [Fact]
+    public async Task TestConnectionAsync_DoesNotRequireMessageAddressesOrDestination()
+    {
+        var client = new StubEmailSmtpClient();
+        var options = new EmailOptions
+        {
+            Enabled = true,
+            Host = "smtp.example.invalid",
+            Port = 587,
+            SecurityMode = EmailSecurityMode.StartTls,
+            AuthenticationMode = EmailAuthenticationMode.Password,
+            Username = "smtp-user",
+            Password = "integration-test-password",
+        };
+        var channel = CreateChannel(client, options);
+
+        var result = await channel.TestConnectionAsync(CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
+        Assert.Equal(["connect", "authenticate", "disconnect"], client.Calls);
+    }
+
+    [Fact]
     public async Task SendAsync_PropagatesCallerCancellation()
     {
         using var cancellation = new CancellationTokenSource();

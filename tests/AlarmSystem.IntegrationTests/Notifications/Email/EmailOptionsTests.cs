@@ -21,6 +21,23 @@ public sealed class EmailOptionsTests
     }
 
     [Fact]
+    public void ValidateSmtpConnection_DoesNotRequireMessageAddressesOrDestination()
+    {
+        var options = new EmailOptions
+        {
+            Enabled = true,
+            Host = "smtp.example.invalid",
+            Port = 587,
+            SecurityMode = EmailSecurityMode.StartTls,
+            AuthenticationMode = EmailAuthenticationMode.Password,
+            Username = "smtp-user",
+            Password = "unit-test-password",
+        };
+
+        options.ValidateSmtpConnection();
+    }
+
+    [Fact]
     public void Validate_AcceptsExplicitUnauthenticatedInternalRelay()
     {
         var options = CreateEnabledOptions(

@@ -14,6 +14,55 @@
 
 ---
 
+## 0.0.7 — 修正 Email SMTP 測試介面
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-12 |
+| 時間 | 15:30:48 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `修正Email SMTP測試介面`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/History.md`
+- `src/AlarmSystem.Desktop/App.xaml.cs`、`MainWindow.xaml`、`MainWindow.xaml.cs`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/Services/IEmailNotificationTestService.cs`、`EmailNotificationTestService.cs`
+- `src/AlarmSystem.Desktop/Services/IEmailTestResultDialogService.cs`、`EmailTestResultDialogService.cs`
+- `src/AlarmSystem.Desktop/ViewModels/EmailNotificationTestViewModel.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailOptions.cs`、`EmailSmtpNotificationChannel.cs`
+- `tests/AlarmSystem.Desktop.Tests/Services/EmailNotificationTestServiceTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/EmailNotificationTestViewModelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Email/EmailOptionsTests.cs`、`EmailSmtpNotificationChannelTests.cs`
+
+### 開發內容與功能
+
+- 將 Desktop Email SMTP 互動式測試／展示頁調整為與 LINE 測試頁相同的授權例外：直接使用原始 Email transport，不注入或檢查 Dongle authorizer；Worker 正式 Email 通道仍由 `LicensedNotificationChannel(NotificationFeature.Email)` 保護。
+- 移除 Email 測試頁的授權狀態與重新檢查授權控制，更新本地化警語，明示測試成功不代表正式自動發報已取得授權；沒有新增 `DemoMode`、環境變數或 Worker 授權繞過開關。
+- 修正唯讀 `PreviewText` 的 WPF binding 為 `OneWay`，避免 Desktop 啟動時因預設 TwoWay binding 對唯讀屬性拋出例外。
+- 讓 SMTP 連線測試與 Email 寄送測試按鈕在非忙碌狀態可操作；設定缺漏時改為顯示明確驗證結果，實際寄送仍保留勾選確認與第二次確認對話框。
+- 將 SMTP 連線設定驗證與郵件內容／目的地驗證分離；連線測試只要求 host、port、安全模式、驗證帳密與 timeout，不要求寄件者、收件人或群組代碼，也不呼叫 SMTP send。
+- 新增本地化 SMTP 連線測試結果對話框；成功、設定驗證失敗、SMTP 失敗、timeout 與取消都會立即提示，且不顯示密碼或完整敏感設定。
+- Email channel 對無效設定改回傳永久失敗 `email_configuration_invalid`，不建立 SMTP client；timeout 仍回傳可重試的 `email_timeout`。
+
+### 測試與驗證
+
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false`：205 passed、0 failed、0 skipped（Application 18、Integration 142、Desktop 45）；Domain 測試專案目前沒有測試案例。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：通過；沙箱內因 named pipe 權限失敗，允許必要權限後完成驗證。
+- `git diff --check`：通過；僅既有未納入提交的 `AGENTS.md` 換行提示。
+- SMTP 自動測試使用記憶體內 `IEmailSmtpClient` fake，LINE／Teams 回歸測試使用本機 stub；未連線真實 SMTP、LINE、Teams 或 Dongle 裝置，未寄送郵件。
+
+### 設定、相容性與尚待確認
+
+- Desktop Email 手動測試的授權邊界變更為不檢查 Dongle，僅限互動式測試／展示路徑；正式 Worker、背景服務、排程、API 與未來 outbox 不得使用此例外。
+- SMTP 連線測試不再要求郵件寄送欄位；實際 Email 寄送仍驗證寄件者、收件人、群組代碼、模板與 ALARM 事件資料，並維持密碼不持久化及關閉視窗清除行為。
+- 真實 SMTP host／port、安全模式、企業 Relay、防火牆、憑證信任與帳號政策仍須由部署環境確認；`email_timeout` 表示連線、TLS、驗證或中斷流程未在設定時間內完成。
+- 沒有修改 Worker DI、NotificationFeature 數值、正式 License 失敗碼、LINE／Teams 核心 transport、資料庫 schema 或 migration；沒有提交 SMTP 密碼、Dongle 金鑰或其他秘密。
+
+---
+
 ## 0.0.6 — Email SMTP 通知與授權測試介面
 
 | 項目 | 內容 |

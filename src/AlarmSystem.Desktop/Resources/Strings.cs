@@ -95,9 +95,7 @@ public static class Strings
     public static string EmailSenderDisplayNameLabel => GetString(nameof(EmailSenderDisplayNameLabel));
     public static string EmailRecipientsLabel => GetString(nameof(EmailRecipientsLabel));
     public static string EmailDestinationReferenceLabel => GetString(nameof(EmailDestinationReferenceLabel));
-    public static string EmailLicenseSection => GetString(nameof(EmailLicenseSection));
-    public static string EmailLicenseStatusLabel => GetString(nameof(EmailLicenseStatusLabel));
-    public static string EmailRefreshLicenseButton => GetString(nameof(EmailRefreshLicenseButton));
+    public static string EmailConnectionTestSection => GetString(nameof(EmailConnectionTestSection));
     public static string EmailTestConnectionButton => GetString(nameof(EmailTestConnectionButton));
     public static string EmailAlarmOnlyNotice => GetString(nameof(EmailAlarmOnlyNotice));
     public static string EmailPreviewSection => GetString(nameof(EmailPreviewSection));
@@ -107,12 +105,10 @@ public static class Strings
     public static string EmailResultSection => GetString(nameof(EmailResultSection));
     public static string EmailSmtpStatusCodeLabel => GetString(nameof(EmailSmtpStatusCodeLabel));
     public static string EmailDefaultMessage => GetString(nameof(EmailDefaultMessage));
-    public static string EmailLicenseStatusUnknown => GetString(nameof(EmailLicenseStatusUnknown));
     public static string EmailStatusReady => GetString(nameof(EmailStatusReady));
-    public static string EmailLicenseAuthorized => GetString(nameof(EmailLicenseAuthorized));
-    public static string EmailLicenseDeniedFormat => GetString(nameof(EmailLicenseDeniedFormat));
     public static string EmailStatusTestingConnection => GetString(nameof(EmailStatusTestingConnection));
     public static string EmailConnectionSucceeded => GetString(nameof(EmailConnectionSucceeded));
+    public static string EmailConnectionResultTitle => GetString(nameof(EmailConnectionResultTitle));
     public static string EmailValidationConfirmationRequired => GetString(nameof(EmailValidationConfirmationRequired));
     public static string EmailStatusUnexpectedFailure => GetString(nameof(EmailStatusUnexpectedFailure));
     public static string EmailStatusConfirmationCancelled => GetString(nameof(EmailStatusConfirmationCancelled));
@@ -127,6 +123,7 @@ public static class Strings
     public static string EmailValidationPreview => GetString(nameof(EmailValidationPreview));
     public static string EmailValidationPortOrTimeout => GetString(nameof(EmailValidationPortOrTimeout));
     public static string EmailValidationPasswordRequired => GetString(nameof(EmailValidationPasswordRequired));
+    public static string EmailValidationConnectionSettings => GetString(nameof(EmailValidationConnectionSettings));
     public static string EmailValidationSettings => GetString(nameof(EmailValidationSettings));
     public static string EmailValidationAlarmData => GetString(nameof(EmailValidationAlarmData));
     public static string EmailSendConfirmationTitle => GetString(nameof(EmailSendConfirmationTitle));

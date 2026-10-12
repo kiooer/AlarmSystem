@@ -35,7 +35,7 @@ public sealed class EmailOptions
 
     public string TemplatePath { get; init; } = "templates/email-alarm.html";
 
-    public void Validate()
+    public void ValidateSmtpConnection()
     {
         if (!Enum.IsDefined(SecurityMode))
         {
@@ -52,11 +52,6 @@ public sealed class EmailOptions
         {
             throw new InvalidOperationException(
                 $"{SectionName}:Timeout must be greater than zero and no more than two minutes.");
-        }
-
-        if (string.IsNullOrWhiteSpace(TemplatePath))
-        {
-            throw new InvalidOperationException($"{SectionName}:TemplatePath is required.");
         }
 
         if (!Enabled)
@@ -96,6 +91,21 @@ public sealed class EmailOptions
         {
             throw new InvalidOperationException(
                 $"{SectionName}:Username and Password are required for password authentication.");
+        }
+    }
+
+    public void Validate()
+    {
+        ValidateSmtpConnection();
+
+        if (string.IsNullOrWhiteSpace(TemplatePath))
+        {
+            throw new InvalidOperationException($"{SectionName}:TemplatePath is required.");
+        }
+
+        if (!Enabled)
+        {
+            return;
         }
 
         if (!TryParseMailbox(SenderAddress))

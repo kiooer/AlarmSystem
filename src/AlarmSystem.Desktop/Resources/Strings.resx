@@ -79,7 +79,7 @@
   <data name="SendConfirmationMessageFormat" xml:space="preserve"><value>這會將測試訊息實際傳送至外部 LINE 群組。&#xA;&#xA;目的地：{0}&#xA;EventId：{1}&#xA;警報等級：{2}&#xA;Tag：{3}&#xA;&#xA;是否繼續？</value></data>
   <data name="LineTabHeader" xml:space="preserve"><value>LINE 手動測試</value></data>
   <data name="EmailTabHeader" xml:space="preserve"><value>Email SMTP 測試</value></data>
-  <data name="EmailToolNotice" xml:space="preserve"><value>Email 測試使用正式 SMTP adapter 與 Dongle License Gate；連線測試不寄信，實際寄送仍需雙重人工確認。密碼僅在本次操作使用，不會保存。</value></data>
+  <data name="EmailToolNotice" xml:space="preserve"><value>此頁為互動式手動測試／功能展示，直接使用正式 SMTP adapter，刻意不檢查 Dongle License；測試成功不代表正式自動發報已取得授權。連線測試不寄信，實際寄送仍需雙重人工確認。密碼僅在本次操作使用，不會保存。</value></data>
   <data name="EmailConnectionSection" xml:space="preserve"><value>Email SMTP 設定</value></data>
   <data name="EmailHostLabel" xml:space="preserve"><value>SMTP Host</value></data>
   <data name="EmailPortLabel" xml:space="preserve"><value>SMTP Port</value></data>
@@ -98,9 +98,7 @@
   <data name="EmailSenderDisplayNameLabel" xml:space="preserve"><value>寄件者名稱</value></data>
   <data name="EmailRecipientsLabel" xml:space="preserve"><value>收件人（逗號、分號或換行分隔）</value></data>
   <data name="EmailDestinationReferenceLabel" xml:space="preserve"><value>收件群組代碼（不填完整清單）</value></data>
-  <data name="EmailLicenseSection" xml:space="preserve"><value>Email Dongle License</value></data>
-  <data name="EmailLicenseStatusLabel" xml:space="preserve"><value>授權狀態</value></data>
-  <data name="EmailRefreshLicenseButton" xml:space="preserve"><value>重新檢查授權</value></data>
+  <data name="EmailConnectionTestSection" xml:space="preserve"><value>SMTP 連線測試</value></data>
   <data name="EmailTestConnectionButton" xml:space="preserve"><value>測試 SMTP 連線（不寄信）</value></data>
   <data name="EmailAlarmOnlyNotice" xml:space="preserve"><value>Email 僅傳送 ALARM；ACK 會由 adapter 明確拒絕，不會呼叫 SMTP。</value></data>
   <data name="EmailPreviewSection" xml:space="preserve"><value>Email 主旨、純文字與 HTML 預覽</value></data>
@@ -110,19 +108,17 @@
   <data name="EmailResultSection" xml:space="preserve"><value>Email 最近一次測試結果</value></data>
   <data name="EmailSmtpStatusCodeLabel" xml:space="preserve"><value>SMTP 狀態碼</value></data>
   <data name="EmailDefaultMessage" xml:space="preserve"><value>[測試] Email SMTP 警報通知</value></data>
-  <data name="EmailLicenseStatusUnknown" xml:space="preserve"><value>尚未檢查</value></data>
-  <data name="EmailStatusReady" xml:space="preserve"><value>請輸入 SMTP 設定並檢查 Email 授權；連線測試不寄信。</value></data>
-  <data name="EmailLicenseAuthorized" xml:space="preserve"><value>Email 正式發報功能已授權。</value></data>
-  <data name="EmailLicenseDeniedFormat" xml:space="preserve"><value>Email 正式發報未授權。錯誤碼：{0}</value></data>
+  <data name="EmailStatusReady" xml:space="preserve"><value>請輸入 SMTP 設定；連線測試不寄信。</value></data>
   <data name="EmailStatusTestingConnection" xml:space="preserve"><value>正在測試 SMTP 連線與驗證，不會寄出郵件。</value></data>
   <data name="EmailConnectionSucceeded" xml:space="preserve"><value>SMTP 連線與驗證成功，未寄出郵件。</value></data>
+  <data name="EmailConnectionResultTitle" xml:space="preserve"><value>SMTP 連線測試結果</value></data>
   <data name="EmailValidationConfirmationRequired" xml:space="preserve"><value>請先勾選真實 Email 寄送確認。</value></data>
   <data name="EmailStatusUnexpectedFailure" xml:space="preserve"><value>Email 測試失敗，請查看非敏感診斷資訊。</value></data>
   <data name="EmailStatusConfirmationCancelled" xml:space="preserve"><value>已取消實際寄送，未呼叫 SMTP。</value></data>
   <data name="EmailStatusSending" xml:space="preserve"><value>正在寄送測試 Email。</value></data>
   <data name="EmailSendSucceeded" xml:space="preserve"><value>SMTP 已接受測試郵件。</value></data>
   <data name="EmailStatusRetryableFormat" xml:space="preserve"><value>Email 暫時性失敗。錯誤碼：{0}。請確認網路、SMTP 服務狀態及寄送結果；Email 沒有伺服器端冪等鍵。</value></data>
-  <data name="EmailStatusPermanentFormat" xml:space="preserve"><value>Email 永久失敗或設定／授權錯誤。錯誤碼：{0}。</value></data>
+  <data name="EmailStatusPermanentFormat" xml:space="preserve"><value>Email 永久失敗或設定錯誤。錯誤碼：{0}。</value></data>
   <data name="EmailValidationTemplateUnhealthy" xml:space="preserve"><value>Email HTML 樣板缺失或無效，未寄送郵件。</value></data>
   <data name="EmailPreviewSubjectLabel" xml:space="preserve"><value>主旨：</value></data>
   <data name="EmailPreviewPlainTextLabel" xml:space="preserve"><value>純文字備援：</value></data>
@@ -130,6 +126,7 @@
   <data name="EmailValidationPreview" xml:space="preserve"><value>無法產生 Email 預覽，請檢查測試警報資料。</value></data>
   <data name="EmailValidationPortOrTimeout" xml:space="preserve"><value>SMTP Port 必須是 1–65535，Timeout 必須是 1–120 秒。</value></data>
   <data name="EmailValidationPasswordRequired" xml:space="preserve"><value>密碼驗證模式需要輸入 SMTP 密碼。</value></data>
+  <data name="EmailValidationConnectionSettings" xml:space="preserve"><value>SMTP 連線設定無效。請檢查 Host、安全模式與驗證帳密；未加密 Relay 必須明確確認。</value></data>
   <data name="EmailValidationSettings" xml:space="preserve"><value>SMTP 設定無效。請檢查 Host、安全模式、驗證、寄件者、收件人與群組代碼；未加密 Relay 必須明確確認。</value></data>
   <data name="EmailValidationAlarmData" xml:space="preserve"><value>測試警報資料無效；EventId、Tag、內容與含 offset 的時間都必須有效。</value></data>
   <data name="EmailSendConfirmationTitle" xml:space="preserve"><value>確認真實 Email 寄送</value></data>

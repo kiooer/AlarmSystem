@@ -30,8 +30,9 @@ Worker 供目前及未來正式派送流程解析的 `IEnumerable<INotificationC
 或 SMTP transport。LINE、Teams、Email 的授權彼此獨立；Email 使用既有數值不變的
 `NotificationFeature.Email`，沒有建立第二套授權契約。
 
-尚未取得 Dongle 廠商規格，因此目前 Worker 與 Desktop Email 測試頁使用明確的 fail-closed authorizer，所有正式 LINE／Teams／Email
-發送都會在 transport 前回傳永久失敗 `license_dongle_unavailable`。此狀態不代表 Dongle SDK 已完成或硬體可用。
+尚未取得 Dongle 廠商規格，因此目前 Worker 使用明確的 fail-closed authorizer，所有正式 LINE／Teams／Email
+發送都會在 transport 前回傳永久失敗 `license_dongle_unavailable`。Desktop 的互動式手動測試／展示頁是刻意隔離的例外，
+不檢查 Dongle；此例外不代表 Dongle SDK 已完成、硬體可用或正式自動發報已取得授權。
 未授權結果只使用下列非敏感錯誤碼：
 
 - `license_feature_not_licensed`
@@ -160,11 +161,10 @@ dotnet run --project src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj
 啟動後可輸入既有 LINE 群組的 `GroupId`、channel access token、timeout 與測試警報內容，預覽將送出的 Flex Bubble JSON。
 按下發送前必須先勾選真實外部發送確認，接著在第二次確認對話框核對遮罩後的目的地與事件資料；取消任一階段都不會呼叫 LINE。發送中可按「取消」。
 
-LINE 分頁是刻意隔離的手動測試／功能展示路徑，直接建立未包裝的 LINE transport，不檢查 Dongle
-License；測試成功不代表正式發報已取得授權。此例外沒有 `DemoMode` 或 Worker 設定開關，也不可供 Worker、背景服務、
-排程、API 或未來 outbox 使用。Email 分頁依本模組需求採不同安全邊界：連線測試與實際寄送都使用既有
-`INotificationLicenseAuthorizer`，實際寄送再透過 `LicensedNotificationChannel(NotificationFeature.Email)`；沒有 UI
-繞過設定。
+LINE 與 Email 分頁都是刻意隔離的手動測試／功能展示路徑，直接建立各自未包裝的 transport，不檢查 Dongle
+License；測試成功不代表正式發報已取得授權。未來 Desktop 互動式測試頁亦採相同邊界。此例外沒有 `DemoMode`
+或 Worker 設定開關，也不可供 Worker、背景服務、排程、API 或未來 outbox 使用；Worker 的正式通道仍一律透過
+`LicensedNotificationChannel`。
 
 此 UI 的發送會呼叫真實 LINE Messaging API，因此只有在 LINE Official Account 已啟用
 **Allow bot to join group chats**、bot 已加入目標群組，而且操作者明確決定進行實際測試時才能使用。`GroupId`
@@ -187,17 +187,18 @@ License；測試成功不代表正式發報已取得授權。此例外沒有 `De
 寄件者、收件人、收件群組代碼、timeout 與測試 ALARM，並預覽主旨、純文字與 HTML。密碼保留在 `PasswordBox`，
 只在按下測試或寄送時傳入 service，不寫入 ViewModel、設定或 log，關閉視窗時清除。
 
-「測試 SMTP 連線」會在 Email Dongle feature 授權成功後執行 connect、必要的 authenticate 與 disconnect，絕不呼叫
-SMTP send。「寄送測試 Email」另需勾選真實寄送確認，再於對話框確認非敏感群組代碼、寄件者、收件人數、EventId
-與 Tag。兩種操作都可取消且都受 License Gate 控制。以 repository 目前的
-`UnavailableDongleLicenseAuthorizer` 執行時，頁面會顯示 `license_dongle_unavailable`，不會連線 SMTP；必須等真實
-Dongle provider 完成，或只在自動測試中注入測試 authorizer，才能驗證授權成功路徑。
+「測試 SMTP 連線」只要求 SMTP host／port、安全模式、驗證帳密與 timeout，會執行 connect、必要的 authenticate
+與 disconnect，絕不呼叫 SMTP send；完成、失敗、逾時、取消或設定驗證失敗都會立即顯示本地化結果對話框，
+寄件者、收件人與群組代碼只在實際寄送時驗證。「寄送測試 Email」
+另需勾選真實寄送確認，再於對話框確認非敏感群組代碼、寄件者、收件人數、EventId 與 Tag。兩種操作都可取消，
+且只存在於 Desktop 互動式測試路徑；它們直接使用原始 Email transport，不檢查 Dongle License。正式 Worker 自動發報
+仍需同時滿足 Email Enabled、有效 SMTP 設定及 `NotificationFeature.Email` 授權。
 
 不連線 SMTP 的人工 smoke test：
 
 1. 啟動 Desktop 並切換 Email 分頁，確認 HTML／純文字預覽與 ALARM-only 警語可見。
-2. 確認 Email 授權狀態為 `license_dongle_unavailable`，按鈕操作不會連線 SMTP。
-3. 確認密碼欄位遮罩顯示，缺少必要欄位、密碼或人工確認時寄送按鈕不可用。
+2. 確認頁面顯示手動測試不檢查 Dongle、且測試成功不代表正式發報授權的警語。
+3. 確認密碼欄位遮罩顯示；缺少必要欄位、密碼或人工確認時，按下操作按鈕會顯示驗證訊息且不會連線或寄送。
 4. 關閉視窗並重新開啟，確認 SMTP 密碼與輸入設定沒有被保存。
 
 所有 Email 自動測試只使用記憶體內的 `IEmailSmtpClient` fake，不會連線或寄送至任何真實 SMTP server。

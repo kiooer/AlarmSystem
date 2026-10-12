@@ -17,7 +17,6 @@ public partial class MainWindow : Window
         this.emailViewModel = emailViewModel;
         DataContext = lineViewModel;
         EmailTab.DataContext = emailViewModel;
-        Loaded += MainWindow_OnLoaded;
     }
 
     protected override void OnClosed(EventArgs e)
@@ -35,12 +34,8 @@ public partial class MainWindow : Window
         ChannelAccessTokenPasswordBox.Clear();
         lineViewModel.SetChannelAccessTokenPresent(false);
         EmailPasswordBox.Clear();
-        emailViewModel.SetPasswordPresent(false);
         base.OnClosed(e);
     }
-
-    private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e) =>
-        await emailViewModel.RefreshLicenseStatusAsync();
 
     private void ChannelAccessTokenPasswordBox_OnPasswordChanged(
         object sender,
@@ -62,16 +57,6 @@ public partial class MainWindow : Window
             channelAccessToken = string.Empty;
         }
     }
-
-    private void EmailPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)
-    {
-        using var securePassword = EmailPasswordBox.SecurePassword;
-        emailViewModel.SetPasswordPresent(securePassword.Length > 0);
-    }
-
-    private async void RefreshEmailLicenseButton_OnClick(
-        object sender,
-        RoutedEventArgs e) => await emailViewModel.RefreshLicenseStatusAsync();
 
     private async void TestEmailConnectionButton_OnClick(
         object sender,

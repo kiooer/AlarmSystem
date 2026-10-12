@@ -1,5 +1,4 @@
 using System.IO;
-using AlarmSystem.Application.Abstractions.Licensing;
 using AlarmSystem.Application.Abstractions.Notifications;
 using AlarmSystem.Desktop.Resources;
 using AlarmSystem.Desktop.Services;
@@ -10,6 +9,14 @@ namespace AlarmSystem.Desktop.Tests.ViewModels;
 
 public sealed class EmailNotificationTestViewModelTests
 {
+    [Fact]
+    public void ManualTestNotice_ExplainsDesktopOnlyLicenseException()
+    {
+        Assert.Contains("手動測試", Strings.EmailToolNotice, StringComparison.Ordinal);
+        Assert.Contains("不檢查 Dongle License", Strings.EmailToolNotice, StringComparison.Ordinal);
+        Assert.Contains("不代表正式自動發報已取得授權", Strings.EmailToolNotice, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Constructor_ProducesHtmlAndPlainTextPreview()
     {
@@ -22,45 +29,92 @@ public sealed class EmailNotificationTestViewModelTests
     }
 
     [Fact]
-    public void CanSend_RequiresPasswordSettingsPreviewAndConfirmation()
+    public void ActionButtons_AreAvailableSoValidationCanExplainMissingSettings()
     {
-        var viewModel = CreateReadyViewModel();
+        var viewModel = CreateViewModel();
 
         Assert.True(viewModel.CanTestConnection);
         Assert.True(viewModel.CanSend);
-        viewModel.SetPasswordPresent(false);
-        Assert.False(viewModel.CanSend);
-    }
-
-    [Fact]
-    public async Task RefreshLicenseStatus_DisplaysControlledFailureCode()
-    {
-        var service = new StubEmailNotificationTestService
-        {
-            LicenseResult = LicenseAuthorizationResult.Denied(
-                LicenseAuthorizationFailureCodes.DongleUnavailable),
-        };
-        var viewModel = CreateViewModel(service);
-
-        await viewModel.RefreshLicenseStatusAsync();
-
-        Assert.Contains(
-            LicenseAuthorizationFailureCodes.DongleUnavailable,
-            viewModel.LicenseStatus,
-            StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task TestConnectionAsync_UsesConnectionOperationOnly()
     {
         var service = new StubEmailNotificationTestService();
-        var viewModel = CreateReadyViewModel(service);
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
 
         await viewModel.TestConnectionAsync("desktop-test-password");
 
         Assert.Equal(1, service.ConnectionCallCount);
         Assert.Equal(0, service.SendCallCount);
+        Assert.Empty(service.ConnectionOptions!.Recipients);
+        Assert.Empty(service.ConnectionOptions.SenderAddress);
         Assert.Equal(Strings.EmailConnectionSucceeded, viewModel.StatusMessage);
+        Assert.Equal(1, resultDialog.CallCount);
+        Assert.Equal(NotificationSendStatus.Succeeded, resultDialog.Status);
+        Assert.Equal(Strings.EmailConnectionSucceeded, resultDialog.Message);
+    }
+
+    [Fact]
+    public async Task TestConnectionAsync_WhenSmtpFailsShowsFailureDialog()
+    {
+        var service = new StubEmailNotificationTestService
+        {
+            ConnectionResult = NotificationSendResult.Retryable("email_timeout"),
+        };
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Equal(1, resultDialog.CallCount);
+        Assert.Equal(NotificationSendStatus.RetryableFailure, resultDialog.Status);
+        Assert.Contains("email_timeout", resultDialog.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestConnectionAsync_WhenValidationFailsShowsDialogWithoutCallingService()
+    {
+        var service = new StubEmailNotificationTestService();
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateViewModel(service, resultDialog: resultDialog);
+
+        await viewModel.TestConnectionAsync(string.Empty);
+
+        Assert.Equal(0, service.ConnectionCallCount);
+        Assert.Equal(1, resultDialog.CallCount);
+        Assert.Null(resultDialog.Status);
+        Assert.Equal(Strings.EmailValidationPasswordRequired, resultDialog.Message);
+    }
+
+    [Fact]
+    public async Task TestConnectionAsync_ValidationFailureClearsPreviousSuccessStatus()
+    {
+        var service = new StubEmailNotificationTestService();
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
+        await viewModel.TestConnectionAsync("desktop-test-password");
+        viewModel.SmtpHost = string.Empty;
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Equal(1, service.ConnectionCallCount);
+        Assert.Equal(2, resultDialog.CallCount);
+        Assert.Null(resultDialog.Status);
+        Assert.Equal(Strings.EmailValidationConnectionSettings, resultDialog.Message);
+    }
+
+    [Fact]
+    public async Task SendAsync_WithMissingSettingsExplainsValidationAndDoesNotCallService()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateViewModel(service);
+
+        await viewModel.SendAsync(string.Empty);
+
+        Assert.Equal(0, service.SendCallCount);
+        Assert.Equal(Strings.EmailValidationPasswordRequired, viewModel.StatusMessage);
     }
 
     [Fact]
@@ -118,14 +172,27 @@ public sealed class EmailNotificationTestViewModelTests
         viewModel.SenderAddress = "alarm@example.invalid";
         viewModel.RecipientsText = "one@example.invalid; two@example.invalid";
         viewModel.DestinationReference = "Operations";
-        viewModel.SetPasswordPresent(true);
         viewModel.IsRealSendConfirmed = true;
+        return viewModel;
+    }
+
+    private static EmailNotificationTestViewModel CreateConnectionReadyViewModel(
+        StubEmailNotificationTestService? service = null,
+        StubResultDialogService? resultDialog = null)
+    {
+        var viewModel = CreateViewModel(service, resultDialog: resultDialog);
+        viewModel.SmtpHost = "smtp.example.invalid";
+        viewModel.SmtpPortText = "587";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
+        viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.Password;
+        viewModel.Username = "smtp-user";
         return viewModel;
     }
 
     private static EmailNotificationTestViewModel CreateViewModel(
         StubEmailNotificationTestService? service = null,
-        StubConfirmationService? confirmation = null)
+        StubConfirmationService? confirmation = null,
+        StubResultDialogService? resultDialog = null)
     {
         var builder = new EmailMessageBuilder();
         return new EmailNotificationTestViewModel(
@@ -134,13 +201,14 @@ public sealed class EmailNotificationTestViewModelTests
                 builder),
             service ?? new StubEmailNotificationTestService(),
             confirmation ?? new StubConfirmationService(),
+            resultDialog ?? new StubResultDialogService(),
             new FixedTimeProvider());
     }
 
     private sealed class StubEmailNotificationTestService : IEmailNotificationTestService
     {
-        public LicenseAuthorizationResult LicenseResult { get; init; } =
-            LicenseAuthorizationResult.Authorized;
+        public NotificationSendResult ConnectionResult { get; init; } =
+            NotificationSendResult.Success();
 
         public int ConnectionCallCount { get; private set; }
 
@@ -148,15 +216,15 @@ public sealed class EmailNotificationTestViewModelTests
 
         public AlarmNotification? Notification { get; private set; }
 
-        public Task<LicenseAuthorizationResult> GetLicenseStatusAsync(
-            CancellationToken cancellationToken) => Task.FromResult(LicenseResult);
+        public EmailOptions? ConnectionOptions { get; private set; }
 
         public Task<NotificationSendResult> TestConnectionAsync(
             EmailOptions options,
             CancellationToken cancellationToken)
         {
             ConnectionCallCount++;
-            return Task.FromResult(NotificationSendResult.Success());
+            ConnectionOptions = options;
+            return Task.FromResult(ConnectionResult);
         }
 
         public Task<NotificationSendResult> SendAsync(
@@ -167,6 +235,24 @@ public sealed class EmailNotificationTestViewModelTests
             SendCallCount++;
             Notification = notification;
             return Task.FromResult(NotificationSendResult.Success());
+        }
+    }
+
+    private sealed class StubResultDialogService : IEmailTestResultDialogService
+    {
+        public int CallCount { get; private set; }
+
+        public string Message { get; private set; } = string.Empty;
+
+        public NotificationSendStatus? Status { get; private set; }
+
+        public void ShowConnectionResult(
+            string message,
+            NotificationSendStatus? status)
+        {
+            CallCount++;
+            Message = message;
+            Status = status;
         }
     }
 

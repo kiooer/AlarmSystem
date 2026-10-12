@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
-using AlarmSystem.Application.Abstractions.Licensing;
 using AlarmSystem.Application.Abstractions.Notifications;
 using AlarmSystem.Desktop.Resources;
 using AlarmSystem.Desktop.Services;
@@ -18,6 +17,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     private readonly EmailTemplateProvider templateProvider;
     private readonly IEmailNotificationTestService testService;
     private readonly IEmailSendConfirmationService confirmationService;
+    private readonly IEmailTestResultDialogService resultDialogService;
     private readonly TimeProvider timeProvider;
     private readonly RelayCommand newTestDataCommand;
     private readonly RelayCommand updatePreviewCommand;
@@ -42,15 +42,12 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     private string message = Strings.EmailDefaultMessage;
     private string sourceTimestampText;
     private string previewText = string.Empty;
-    private string licenseStatus = Strings.EmailLicenseStatusUnknown;
     private string statusMessage = Strings.EmailStatusReady;
     private NotificationSendStatus? lastSendStatus;
     private string? lastErrorCode;
     private int? lastSmtpStatusCode;
-    private bool hasPassword;
     private bool isRealSendConfirmed;
     private bool isBusy;
-    private bool previewIsValid;
     private bool suppressPreviewUpdates;
     private CancellationTokenSource? operationCancellation;
 
@@ -58,11 +55,13 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         EmailTemplateProvider templateProvider,
         IEmailNotificationTestService testService,
         IEmailSendConfirmationService confirmationService,
+        IEmailTestResultDialogService resultDialogService,
         TimeProvider timeProvider)
     {
         this.templateProvider = templateProvider;
         this.testService = testService;
         this.confirmationService = confirmationService;
+        this.resultDialogService = resultDialogService;
         this.timeProvider = timeProvider;
 
         eventIdText = Guid.NewGuid().ToString("D");
@@ -227,12 +226,6 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         private set => SetProperty(ref previewText, value);
     }
 
-    public string LicenseStatus
-    {
-        get => licenseStatus;
-        private set => SetProperty(ref licenseStatus, value);
-    }
-
     public string StatusMessage
     {
         get => statusMessage;
@@ -305,10 +298,9 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
 
     public bool IsNotBusy => !IsBusy;
 
-    public bool CanTestConnection => !IsBusy && CanCreateOptions();
+    public bool CanTestConnection => !IsBusy;
 
-    public bool CanSend =>
-        !IsBusy && IsRealSendConfirmed && previewIsValid && CanCreateOptions();
+    public bool CanSend => !IsBusy;
 
     public string LastSendStatusDisplay => LastSendStatus switch
     {
@@ -329,35 +321,6 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
 
     public ICommand CancelCommand => cancelCommand;
 
-    public void SetPasswordPresent(bool isPresent)
-    {
-        if (hasPassword == isPresent)
-        {
-            return;
-        }
-
-        hasPassword = isPresent;
-        RaiseCanExecuteChanged();
-    }
-
-    public async Task RefreshLicenseStatusAsync()
-    {
-        try
-        {
-            var result = await testService.GetLicenseStatusAsync(CancellationToken.None);
-            LicenseStatus = result.IsAuthorized
-                ? Strings.EmailLicenseAuthorized
-                : string.Format(
-                    CultureInfo.CurrentCulture,
-                    Strings.EmailLicenseDeniedFormat,
-                    result.FailureCode ?? LicenseAuthorizationFailureCodes.ValidationFailed);
-        }
-        catch (OperationCanceledException)
-        {
-            LicenseStatus = Strings.EmailLicenseStatusUnknown;
-        }
-    }
-
     public async Task TestConnectionAsync(string password)
     {
         if (IsBusy)
@@ -365,13 +328,15 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             return;
         }
 
-        if (!TryCreateOptions(password, out var options, out var validationMessage))
+        ResetLastResult();
+        if (!TryCreateConnectionOptions(password, out var options, out var validationMessage))
         {
             if (!string.IsNullOrEmpty(validationMessage))
             {
                 StatusMessage = validationMessage;
             }
 
+            ShowConnectionResult();
             return;
         }
 
@@ -379,7 +344,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             token => testService.TestConnectionAsync(options, token),
             Strings.EmailStatusTestingConnection,
             Strings.EmailConnectionSucceeded);
-        await RefreshLicenseStatusAsync();
+        ShowConnectionResult();
     }
 
     public async Task SendAsync(string password)
@@ -433,7 +398,6 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             token => testService.SendAsync(options, notification, token),
             Strings.EmailStatusSending,
             Strings.EmailSendSucceeded);
-        await RefreshLicenseStatusAsync();
     }
 
     private async Task ExecuteOperationAsync(
@@ -492,9 +456,20 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
 
     private void CancelOperation() => operationCancellation?.Cancel();
 
+    private void ShowConnectionResult()
+    {
+        try
+        {
+            resultDialogService.ShowConnectionResult(StatusMessage, LastSendStatus);
+        }
+        catch (Exception)
+        {
+            StatusMessage = Strings.EmailStatusUnexpectedFailure;
+        }
+    }
+
     private void UpdatePreview()
     {
-        previewIsValid = false;
         if (!TryCreateNotification(out var notification, out var validationMessage))
         {
             PreviewText = validationMessage;
@@ -521,7 +496,6 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
                 string.Empty,
                 Strings.EmailPreviewHtmlLabel,
                 content.HtmlBody);
-            previewIsValid = true;
         }
         catch (Exception exception) when (exception is ArgumentException or
                                           InvalidOperationException)
@@ -532,19 +506,48 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         RaiseCanExecuteChanged();
     }
 
-    private bool CanCreateOptions()
+    private bool TryCreateConnectionOptions(
+        string password,
+        out EmailOptions options,
+        out string validationMessage)
     {
-        if (UsesPasswordAuthentication && !hasPassword)
+        options = null!;
+        validationMessage = string.Empty;
+        if (!TryParsePort(out var port) || !TryParseTimeout(out var timeout))
         {
+            validationMessage = Strings.EmailValidationPortOrTimeout;
             return false;
         }
 
-        return TryParsePort(out _) &&
-            TryParseTimeout(out _) &&
-            ParseRecipients().Count > 0 &&
-            !string.IsNullOrWhiteSpace(SmtpHost) &&
-            !string.IsNullOrWhiteSpace(SenderAddress) &&
-            !string.IsNullOrWhiteSpace(DestinationReference);
+        if (UsesPasswordAuthentication && string.IsNullOrWhiteSpace(password))
+        {
+            validationMessage = Strings.EmailValidationPasswordRequired;
+            return false;
+        }
+
+        options = new EmailOptions
+        {
+            Enabled = true,
+            Host = SmtpHost,
+            Port = port,
+            SecurityMode = SelectedSecurityMode,
+            AllowUnencryptedInternalRelay = AllowUnencryptedInternalRelay,
+            AuthenticationMode = SelectedAuthenticationMode,
+            Username = Username,
+            Password = password,
+            Timeout = timeout,
+        };
+        try
+        {
+            options.ValidateSmtpConnection();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            options = null!;
+            validationMessage = Strings.EmailValidationConnectionSettings;
+            return false;
+        }
     }
 
     private bool TryCreateOptions(
@@ -562,7 +565,6 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
 
         if (UsesPasswordAuthentication && string.IsNullOrWhiteSpace(password))
         {
-            SetPasswordPresent(false);
             validationMessage = Strings.EmailValidationPasswordRequired;
             return false;
         }

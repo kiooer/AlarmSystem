@@ -11,11 +11,20 @@ namespace AlarmSystem.Desktop.Tests.Services;
 public sealed class EmailNotificationTestServiceTests
 {
     [Fact]
-    public async Task SendAsync_WhenAuthorized_UsesFormalEmailTransport()
+    public void Constructor_DoesNotAcceptFormalLicenseAuthorizer()
+    {
+        var constructor = Assert.Single(typeof(EmailNotificationTestService).GetConstructors());
+
+        Assert.DoesNotContain(
+            constructor.GetParameters(),
+            parameter => parameter.ParameterType == typeof(INotificationLicenseAuthorizer));
+    }
+
+    [Fact]
+    public async Task SendAsync_UsesRawEmailTransportWithoutLicenseCheck()
     {
         var client = new StubEmailSmtpClient();
-        var authorizer = new StubAuthorizer(LicenseAuthorizationResult.Authorized);
-        var service = CreateService(client, authorizer);
+        var service = CreateService(client);
 
         var result = await service.SendAsync(
             CreateOptions(),
@@ -23,45 +32,18 @@ public sealed class EmailNotificationTestServiceTests
             CancellationToken.None);
 
         Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
-        Assert.Equal(NotificationFeature.Email, authorizer.LastFeature);
         Assert.Equal(["connect", "authenticate", "send", "disconnect"], client.Calls);
         Assert.Equal(2, client.Message!.To.Count);
-    }
-
-    [Theory]
-    [InlineData(LicenseAuthorizationFailureCodes.FeatureNotLicensed)]
-    [InlineData(LicenseAuthorizationFailureCodes.DongleUnavailable)]
-    [InlineData(LicenseAuthorizationFailureCodes.Expired)]
-    [InlineData(LicenseAuthorizationFailureCodes.ValidationFailed)]
-    public async Task SendAsync_WhenLicenseDenied_DoesNotCreateSmtpClient(string failureCode)
-    {
-        var client = new StubEmailSmtpClient();
-        var factory = new StubEmailSmtpClientFactory(client);
-        var service = CreateService(
-            factory,
-            new StubAuthorizer(LicenseAuthorizationResult.Denied(failureCode)));
-
-        var result = await service.SendAsync(
-            CreateOptions(),
-            CreateNotification(),
-            CancellationToken.None);
-
-        Assert.Equal(NotificationSendStatus.PermanentFailure, result.Status);
-        Assert.Equal(failureCode, result.ErrorCode);
-        Assert.Equal(0, factory.CreateCount);
-        Assert.Empty(client.Calls);
     }
 
     [Fact]
     public async Task TestConnectionAsync_DoesNotSendEmail()
     {
         var client = new StubEmailSmtpClient();
-        var service = CreateService(
-            client,
-            new StubAuthorizer(LicenseAuthorizationResult.Authorized));
+        var service = CreateService(client);
 
         var result = await service.TestConnectionAsync(
-            CreateOptions(),
+            CreateConnectionOptions(),
             CancellationToken.None);
 
         Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
@@ -69,43 +51,22 @@ public sealed class EmailNotificationTestServiceTests
         Assert.Null(client.Message);
     }
 
-    [Fact]
-    public async Task TestConnectionAsync_AuthorizerExceptionFailsClosed()
+    private static EmailOptions CreateConnectionOptions() => new()
     {
-        var factory = new StubEmailSmtpClientFactory(new StubEmailSmtpClient());
-        var service = CreateService(factory, new ThrowingAuthorizer());
-
-        var result = await service.TestConnectionAsync(
-            CreateOptions(),
-            CancellationToken.None);
-
-        Assert.Equal(NotificationSendStatus.PermanentFailure, result.Status);
-        Assert.Equal(LicenseAuthorizationFailureCodes.ValidationFailed, result.ErrorCode);
-        Assert.Equal(0, factory.CreateCount);
-    }
-
-    [Fact]
-    public async Task GetLicenseStatusAsync_PropagatesCallerCancellation()
-    {
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-        var service = CreateService(
-            new StubEmailSmtpClient(),
-            new StubAuthorizer(LicenseAuthorizationResult.Authorized));
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            service.GetLicenseStatusAsync(cancellation.Token));
-    }
+        Enabled = true,
+        Host = "smtp.example.invalid",
+        Port = 587,
+        SecurityMode = EmailSecurityMode.StartTls,
+        AuthenticationMode = EmailAuthenticationMode.Password,
+        Username = "smtp-user",
+        Password = "desktop-test-password",
+    };
 
     private static EmailNotificationTestService CreateService(
-        StubEmailSmtpClient client,
-        INotificationLicenseAuthorizer authorizer) => CreateService(
-            new StubEmailSmtpClientFactory(client),
-            authorizer);
+        StubEmailSmtpClient client) => CreateService(new StubEmailSmtpClientFactory(client));
 
     private static EmailNotificationTestService CreateService(
-        IEmailSmtpClientFactory factory,
-        INotificationLicenseAuthorizer authorizer)
+        IEmailSmtpClientFactory factory)
     {
         var builder = new EmailMessageBuilder();
         return new EmailNotificationTestService(
@@ -113,8 +74,7 @@ public sealed class EmailNotificationTestServiceTests
             new EmailTemplateProvider(
                 Path.Combine(AppContext.BaseDirectory, "templates", "email-alarm.html"),
                 builder),
-            builder,
-            authorizer);
+            builder);
     }
 
     private static EmailOptions CreateOptions() => new()
@@ -141,29 +101,6 @@ public sealed class EmailNotificationTestServiceTests
         "Desktop Email test",
         new DateTimeOffset(2026, 10, 12, 15, 0, 0, TimeSpan.FromHours(8)),
         "Test equipment");
-
-    private sealed class StubAuthorizer(LicenseAuthorizationResult result)
-        : INotificationLicenseAuthorizer
-    {
-        public NotificationFeature? LastFeature { get; private set; }
-
-        public Task<LicenseAuthorizationResult> AuthorizeAsync(
-            NotificationFeature feature,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            LastFeature = feature;
-            return Task.FromResult(result);
-        }
-    }
-
-    private sealed class ThrowingAuthorizer : INotificationLicenseAuthorizer
-    {
-        public Task<LicenseAuthorizationResult> AuthorizeAsync(
-            NotificationFeature feature,
-            CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("Sensitive SDK response must not escape.");
-    }
 
     private sealed class StubEmailSmtpClientFactory(StubEmailSmtpClient client)
         : IEmailSmtpClientFactory
