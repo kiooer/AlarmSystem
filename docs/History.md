@@ -14,6 +14,52 @@
 
 ---
 
+## 0.0.9 — SMTP Port 自動連動 TLS 與進階 Relay 設定
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-13 |
+| 時間 | 16:33:43 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `SMTP Port 自動連動 TLS 與進階 Relay 設定`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/History.md`
+- `src/AlarmSystem.Desktop/MainWindow.xaml`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/ViewModels/EmailNotificationTestViewModel.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailOptions.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailSmtpConfigurationMode.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailSmtpPortSecurityPolicy.cs`
+- `src/AlarmSystem.Worker/Program.cs`、`appsettings.json`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/EmailNotificationTestViewModelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Email/EmailOptionsTests.cs`
+
+### 開發內容與功能
+
+- 新增一般與進階 SMTP 設定模式，將標準 Port 與安全模式集中為 `587 -> StartTls`、`465 -> SslTls`（MailKit `SslOnConnect`）的共用政策；Desktop 連線測試、實際寄送與 Worker 正式通道均使用相同設定模型及底層驗證。
+- Desktop 一般模式改以 587／465 下拉選單操作，安全模式僅顯示且會隨 Port 即時更新；未加密 Relay 選項移至進階設定，特殊 Port、安全模式與明確 Relay 確認仍可供核准的內部 SMTP 環境使用。
+- 一般模式拒絕自訂 Port、不相容安全模式、`SecurityMode=None` 及 Relay 確認旗標；進階模式仍要求未加密 Relay 必須明確確認且不可使用密碼驗證，不提供 STARTTLS 失敗後降級明文的行為。
+- 模式切換保留 SMTP 帳號、寄件者、收件者及進階 Port／安全模式，不會自動啟用未加密 Relay；離開明文 Relay 條件或切換模式時清除 Relay 確認。
+- Worker 預設設定新增 `ConfigurationMode=Standard`；舊設定未包含此欄位時採 `Advanced` 相容模式，保留既有特殊 Port 與明確安全模式，避免靜默覆蓋客戶設定。
+
+### 測試與驗證
+
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：255 passed、0 failed、0 skipped（Application 18、Integration 176、Desktop 61）；Domain 測試專案目前沒有測試案例。
+- `dotnet format AlarmSystem.sln --no-restore --verify-no-changes --verbosity minimal`：通過。
+- `git diff --check`、Desktop XAML／RESX XML 解析、Worker `appsettings.json` JSON 解析及變更內容秘密掃描：通過。
+- 使用者已完成 Desktop UI 人工測試並確認操作正常；本次自動驗證未連線真實 SMTP、LINE、Teams 或 Dongle 裝置。
+
+### 設定、相容性與尚待確認
+
+- `Notifications:Email` 新增非敏感的 `ConfigurationMode` 設定；新部署預設為 `Standard`，舊部署缺少欄位時維持 `Advanced` 相容行為。Desktop 目前沒有正式設定持久化機制，UI 模式與欄位只在目前視窗生命週期內保存。
+- 未修改 IPv4 only SMTP transport、MailKit 寄送流程、TLS 憑證驗證、QUIT 警告處理、Email 錯誤碼、Desktop 手動測試授權例外或 Worker Dongle License 保護；未修改 LINE／Teams、共用警報契約、資料庫 schema 或 migration。
+- 未提交 SMTP 密碼、App Password、授權金鑰、token、郵件本文或其他秘密；未追蹤的架構圖不納入本次提交。
+
+---
+
 ## 0.0.8 — 寄件功能完成及 SMTP 測試完成
 
 | 項目 | 內容 |

@@ -84,6 +84,8 @@ public static class Strings
     public static string EmailSecurityModeNone => GetString(nameof(EmailSecurityModeNone));
     public static string EmailSecurityModeStartTls => GetString(nameof(EmailSecurityModeStartTls));
     public static string EmailSecurityModeSslTls => GetString(nameof(EmailSecurityModeSslTls));
+    public static string EmailAdvancedSettingsHeader => GetString(nameof(EmailAdvancedSettingsHeader));
+    public static string EmailAdvancedSettingsHint => GetString(nameof(EmailAdvancedSettingsHint));
     public static string EmailAllowUnencryptedRelay => GetString(nameof(EmailAllowUnencryptedRelay));
     public static string EmailAuthenticationModeLabel => GetString(nameof(EmailAuthenticationModeLabel));
     public static string EmailAuthenticationNone => GetString(nameof(EmailAuthenticationNone));
@@ -151,6 +153,7 @@ public static class Strings
     public static string EmailValidationPreview => GetString(nameof(EmailValidationPreview));
     public static string EmailValidationPortOrTimeout => GetString(nameof(EmailValidationPortOrTimeout));
     public static string EmailValidationPasswordRequired => GetString(nameof(EmailValidationPasswordRequired));
+    public static string EmailValidationStandardConnectionSettings => GetString(nameof(EmailValidationStandardConnectionSettings));
     public static string EmailValidationConnectionSettings => GetString(nameof(EmailValidationConnectionSettings));
     public static string EmailValidationSettings => GetString(nameof(EmailValidationSettings));
     public static string EmailValidationMessageSettings => GetString(nameof(EmailValidationMessageSettings));

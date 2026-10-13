@@ -8,6 +8,11 @@ public sealed class EmailOptions
 
     public bool Enabled { get; init; }
 
+    // Advanced is the backward-compatible default for existing deployments that do not
+    // have this setting yet and may use a non-standard SMTP port.
+    public EmailSmtpConfigurationMode ConfigurationMode { get; init; } =
+        EmailSmtpConfigurationMode.Advanced;
+
     public string Host { get; init; } = string.Empty;
 
     public int Port { get; init; } = 587;
@@ -37,6 +42,12 @@ public sealed class EmailOptions
 
     public void ValidateSmtpConnection()
     {
+        if (!Enum.IsDefined(ConfigurationMode))
+        {
+            throw new InvalidOperationException(
+                $"{SectionName}:ConfigurationMode is not supported.");
+        }
+
         if (!Enum.IsDefined(SecurityMode))
         {
             throw new InvalidOperationException($"{SectionName}:SecurityMode is not supported.");
@@ -69,6 +80,29 @@ public sealed class EmailOptions
         {
             throw new InvalidOperationException(
                 $"{SectionName}:Port must be between 1 and 65535 when Email is enabled.");
+        }
+
+        if (ConfigurationMode == EmailSmtpConfigurationMode.Standard)
+        {
+            if (!EmailSmtpPortSecurityPolicy.TryGetStandardSecurityMode(
+                    Port,
+                    out var requiredSecurityMode))
+            {
+                throw new InvalidOperationException(
+                    $"{SectionName}:Standard mode only supports SMTP ports 587 and 465.");
+            }
+
+            if (SecurityMode != requiredSecurityMode)
+            {
+                throw new InvalidOperationException(
+                    $"{SectionName}:SecurityMode must match the selected standard SMTP port.");
+            }
+
+            if (AllowUnencryptedInternalRelay)
+            {
+                throw new InvalidOperationException(
+                    $"{SectionName}:Unencrypted relay is not available in Standard mode.");
+            }
         }
 
         if (SecurityMode == EmailSecurityMode.None)

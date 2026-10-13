@@ -110,8 +110,10 @@ Email 是與 Teams／LINE 平行的 `INotificationChannel`。正式 Worker 只�
 Email 樣板、建立 SMTP client、連線或寄送。因目前 provider 固定 fail closed，即使 Email 設定完整且 `Enabled=true`，
 也會先得到 `license_dongle_unavailable`，不代表已具備真實 Dongle 發送能力。
 
-SMTP transport 使用 MailKit／MimeKit，支援固定的三種安全模式：`StartTls`（要求 STARTTLS）、`SslTls`
-（連線即 TLS）與 `None`。不會在 TLS 失敗後自動降級。`None` 只允許搭配
+SMTP transport 使用 MailKit／MimeKit。`Standard` 設定模式以 Port 作為唯一安全來源：587 固定使用
+`StartTls`（要求 STARTTLS），465 固定使用 `SslTls`（MailKit `SslOnConnect`，連線即 TLS）；設定驗證會拒絕其他
+Port／安全模式組合。`Advanced` 模式保留自訂 Port 與三種安全模式：`StartTls`、`SslTls`、`None`。所有模式都不會在
+TLS 失敗後自動降級。`None` 只允許搭配
 `AllowUnencryptedInternalRelay=true`、`AuthenticationMode=None` 的明確內部 Relay 設定；部署人員仍須確認該 host
 確實位於核准的內部網路。密碼驗證只允許用於加密模式。Email 可設定多位收件人，對外只透過
 `DestinationReference` 顯示收件群組代碼，不以此欄位暴露完整收件清單。
@@ -122,9 +124,9 @@ SMTP transport 使用 MailKit／MimeKit，支援固定的三種安全模式：`S
 
 ```text
 Notifications__Email__Enabled=true
+Notifications__Email__ConfigurationMode=Standard
 Notifications__Email__Host
 Notifications__Email__Port=587
-Notifications__Email__SecurityMode=StartTls
 Notifications__Email__AllowUnencryptedInternalRelay=false
 Notifications__Email__AuthenticationMode=Password
 Notifications__Email__Username
@@ -136,6 +138,11 @@ Notifications__Email__DestinationReference
 Notifications__Email__TimeoutSeconds=15
 Notifications__Email__TemplatePath=templates/email-alarm.html
 ```
+
+`ConfigurationMode=Standard` 時 Worker 與 Desktop 一樣依 Port 自動決定安全模式，無須另設 `SecurityMode`。
+`ConfigurationMode=Advanced` 時才讀取 `SecurityMode` 並允許特殊 Port。為保持既有部署相容，舊設定若沒有
+`ConfigurationMode`，會視為 `Advanced`，原有特殊 Port 與安全模式不會被改寫；部署人員確認可採標準規則後，應明確改為
+`Standard`。未加密 Relay 即使在 `Advanced` 仍必須明確設定允許，且只能使用 `AuthenticationMode=None`。
 
 啟用時會驗證 Host、Port、傳輸安全、驗證模式、寄件者、至少一位收件人、非敏感群組代碼，以及 1–120 秒的
 timeout；同一個 `TimeoutSeconds` 分別套用於 Connect、Authenticate 與 Send 階段。Disconnect 使用獨立的 5 秒清理上限，
@@ -192,7 +199,10 @@ License；測試成功不代表正式發報已取得授權。未來 Desktop 互�
 
 ## Email SMTP 測試 UI
 
-以同一個 Desktop 命令啟動後切換至「Email SMTP 測試」分頁。可輸入 SMTP host／port、安全模式、驗證方式、
+以同一個 Desktop 命令啟動後切換至「Email SMTP 測試」分頁。一般模式只需選擇 Port 587 或 465，畫面會立即以唯讀欄位
+顯示對應的 STARTTLS 或 SSL/TLS，操作人員不能自行建立不相容組合。只有展開「進階 SMTP 設定」後，才能輸入特殊 Port、
+選擇安全模式及明確確認內部未加密 Relay；收合進階設定會恢復標準 Port／TLS 對應並清除未加密 Relay 確認，但不清除帳號、
+寄件者或收件人。可另外輸入驗證方式、
 寄件者、收件人、收件群組代碼、timeout 與測試 ALARM，並預覽主旨、純文字與 HTML。密碼保留在 `PasswordBox`，
 只在按下測試或寄送時傳入 service，不寫入 ViewModel、設定或 log，關閉視窗時清除。
 

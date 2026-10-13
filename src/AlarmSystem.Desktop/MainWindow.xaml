@@ -340,22 +340,87 @@
                      Content="{x:Static resources:Strings.EmailHostLabel}" />
               <TextBox Grid.Row="0" Grid.Column="1"
                        Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" />
-              <Label Grid.Row="1" Grid.Column="0"
-                     Content="{x:Static resources:Strings.EmailPortLabel}" />
-              <TextBox Grid.Row="1" Grid.Column="1"
-                       Text="{Binding SmtpPortText, UpdateSourceTrigger=PropertyChanged}" />
-              <Label Grid.Row="2" Grid.Column="0"
-                     Content="{x:Static resources:Strings.EmailSecurityModeLabel}" />
-              <ComboBox Grid.Row="2" Grid.Column="1"
-                        ItemsSource="{Binding SecurityModes}"
-                        DisplayMemberPath="DisplayName"
-                        SelectedValuePath="Value"
-                        SelectedValue="{Binding SelectedSecurityMode}" />
-              <CheckBox Grid.Row="3" Grid.Column="1"
-                        Margin="5"
-                        Content="{x:Static resources:Strings.EmailAllowUnencryptedRelay}"
-                        IsEnabled="{Binding IsUnencryptedRelay}"
-                        IsChecked="{Binding AllowUnencryptedInternalRelay}" />
+              <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
+                <Grid.Style>
+                  <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsAdvancedSmtpSettings}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Grid.Style>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="235" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Label Grid.Column="0"
+                       Content="{x:Static resources:Strings.EmailPortLabel}" />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding StandardSmtpPorts}"
+                          SelectedItem="{Binding SelectedStandardSmtpPort}" />
+              </Grid>
+              <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                <Grid.Style>
+                  <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsAdvancedSmtpSettings}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Grid.Style>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="235" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Label Grid.Column="0"
+                       Content="{x:Static resources:Strings.EmailSecurityModeLabel}" />
+                <TextBox Grid.Column="1"
+                         IsReadOnly="True"
+                         IsTabStop="False"
+                         Text="{Binding ActiveSecurityModeDisplay, Mode=OneWay}" />
+              </Grid>
+              <Expander Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                        Margin="4,6,4,8"
+                        Header="{x:Static resources:Strings.EmailAdvancedSettingsHeader}"
+                        IsExpanded="{Binding IsAdvancedSmtpSettings, Mode=TwoWay}">
+                <StackPanel Margin="8,8,0,0">
+                  <TextBlock Margin="4,0,4,8"
+                             Foreground="#475467"
+                             TextWrapping="Wrap"
+                             Text="{x:Static resources:Strings.EmailAdvancedSettingsHint}" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="223" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Label Grid.Row="0" Grid.Column="0"
+                           Content="{x:Static resources:Strings.EmailPortLabel}" />
+                    <TextBox Grid.Row="0" Grid.Column="1"
+                             Text="{Binding SmtpPortText, UpdateSourceTrigger=PropertyChanged}" />
+                    <Label Grid.Row="1" Grid.Column="0"
+                           Content="{x:Static resources:Strings.EmailSecurityModeLabel}" />
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                              ItemsSource="{Binding SecurityModes}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedSecurityMode}" />
+                    <CheckBox Grid.Row="2" Grid.Column="1"
+                              Margin="5"
+                              Content="{x:Static resources:Strings.EmailAllowUnencryptedRelay}"
+                              IsEnabled="{Binding IsUnencryptedRelay}"
+                              IsChecked="{Binding AllowUnencryptedInternalRelay}" />
+                  </Grid>
+                </StackPanel>
+              </Expander>
               <Label Grid.Row="4" Grid.Column="0"
                      Content="{x:Static resources:Strings.EmailAuthenticationModeLabel}" />
               <ComboBox Grid.Row="4" Grid.Column="1"

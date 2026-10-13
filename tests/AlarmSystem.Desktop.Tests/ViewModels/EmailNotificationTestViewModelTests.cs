@@ -38,13 +38,179 @@ public sealed class EmailNotificationTestViewModelTests
     }
 
     [Fact]
+    public void Constructor_DefaultsToStandardPort587AndStartTls()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.False(viewModel.IsAdvancedSmtpSettings);
+        Assert.True(viewModel.IsStandardSmtpSettings);
+        Assert.Equal([587, 465], viewModel.StandardSmtpPorts);
+        Assert.Equal(587, viewModel.SelectedStandardSmtpPort);
+        Assert.Equal(EmailSecurityMode.StartTls, viewModel.ActiveSecurityMode);
+        Assert.Equal(Strings.EmailSecurityModeStartTls, viewModel.ActiveSecurityModeDisplay);
+        Assert.False(viewModel.IsUnencryptedRelay);
+        Assert.False(viewModel.AllowUnencryptedInternalRelay);
+    }
+
+    [Theory]
+    [InlineData(587, EmailSecurityMode.StartTls)]
+    [InlineData(465, EmailSecurityMode.SslTls)]
+    public async Task StandardPortSelection_DerivesSecurityModeForConnection(
+        int port,
+        EmailSecurityMode expectedSecurityMode)
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateConnectionReadyViewModel(service);
+        viewModel.SelectedStandardSmtpPort = port;
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Equal(port, service.ConnectionOptions!.Port);
+        Assert.Equal(expectedSecurityMode, service.ConnectionOptions.SecurityMode);
+        Assert.Equal(
+            EmailSmtpConfigurationMode.Standard,
+            service.ConnectionOptions.ConfigurationMode);
+        Assert.False(service.ConnectionOptions.AllowUnencryptedInternalRelay);
+    }
+
+    [Fact]
+    public void StandardPortSelection_ImmediatelyUpdatesSecurityDisplay()
+    {
+        var viewModel = CreateViewModel();
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, eventArgs) => changedProperties.Add(eventArgs.PropertyName);
+
+        viewModel.SelectedStandardSmtpPort = 465;
+
+        Assert.Equal(EmailSecurityMode.SslTls, viewModel.ActiveSecurityMode);
+        Assert.Equal(Strings.EmailSecurityModeSslTls, viewModel.ActiveSecurityModeDisplay);
+        Assert.Contains(nameof(viewModel.ActiveSecurityModeDisplay), changedProperties);
+    }
+
+    [Fact]
+    public async Task StandardMode_DoesNotAllowCustomPortSecurityOrRelayOverride()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateConnectionReadyViewModel(service);
+
+        viewModel.SmtpPortText = "25";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.None;
+        viewModel.AllowUnencryptedInternalRelay = true;
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Equal(EmailSecurityMode.StartTls, viewModel.ActiveSecurityMode);
+        Assert.Equal(EmailSecurityMode.StartTls, viewModel.SelectedSecurityMode);
+        Assert.False(viewModel.AllowUnencryptedInternalRelay);
+        Assert.False(viewModel.IsUnencryptedRelay);
+        Assert.Equal(587, service.ConnectionOptions!.Port);
+        Assert.Equal(EmailSecurityMode.StartTls, service.ConnectionOptions.SecurityMode);
+    }
+
+    [Fact]
+    public async Task AdvancedMode_AllowsCustomPortAndExplicitSecurityMode()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateConnectionReadyViewModel(service);
+        viewModel.IsAdvancedSmtpSettings = true;
+        viewModel.SmtpPortText = "2525";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Equal(2525, service.ConnectionOptions!.Port);
+        Assert.Equal(EmailSecurityMode.StartTls, service.ConnectionOptions.SecurityMode);
+        Assert.Equal(
+            EmailSmtpConfigurationMode.Advanced,
+            service.ConnectionOptions.ConfigurationMode);
+    }
+
+    [Fact]
+    public async Task AdvancedMode_RejectsUnencryptedRelayWithoutExplicitConfirmation()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateConnectionReadyViewModel(service);
+        viewModel.IsAdvancedSmtpSettings = true;
+        viewModel.SmtpPortText = "25";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.None;
+        viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.None;
+        viewModel.Username = string.Empty;
+
+        await viewModel.TestConnectionAsync(string.Empty);
+
+        Assert.Equal(0, service.ConnectionCallCount);
+        Assert.Equal("email_configuration_invalid", viewModel.LastErrorCode);
+        Assert.Equal(Strings.EmailValidationConnectionSettings, viewModel.StatusMessage);
+        Assert.Contains("未加密 Relay", viewModel.StatusMessage, StringComparison.Ordinal);
+        Assert.False(viewModel.AllowUnencryptedInternalRelay);
+    }
+
+    [Fact]
+    public async Task AdvancedMode_AllowsExplicitUnauthenticatedInternalRelay()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateConnectionReadyViewModel(service);
+        viewModel.IsAdvancedSmtpSettings = true;
+        viewModel.SmtpPortText = "25";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.None;
+        viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.None;
+        viewModel.Username = string.Empty;
+        viewModel.AllowUnencryptedInternalRelay = true;
+
+        await viewModel.TestConnectionAsync(string.Empty);
+
+        Assert.Equal(1, service.ConnectionCallCount);
+        Assert.Equal(25, service.ConnectionOptions!.Port);
+        Assert.Equal(EmailSecurityMode.None, service.ConnectionOptions.SecurityMode);
+        Assert.True(service.ConnectionOptions.AllowUnencryptedInternalRelay);
+    }
+
+    [Fact]
+    public void SwitchingModes_PreservesNonSensitiveFieldsAndResetsRelayConfirmation()
+    {
+        var viewModel = CreateReadyViewModel();
+        viewModel.IsAdvancedSmtpSettings = true;
+        viewModel.SmtpPortText = "2525";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.None;
+        viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.None;
+        viewModel.AllowUnencryptedInternalRelay = true;
+
+        viewModel.IsAdvancedSmtpSettings = false;
+
+        Assert.Equal(587, viewModel.SelectedStandardSmtpPort);
+        Assert.Equal(EmailSecurityMode.StartTls, viewModel.ActiveSecurityMode);
+        Assert.False(viewModel.AllowUnencryptedInternalRelay);
+        Assert.Equal("smtp-user", viewModel.Username);
+        Assert.Equal("alarm@example.invalid", viewModel.SenderAddress);
+        Assert.Equal("one@example.invalid; two@example.invalid", viewModel.RecipientsText);
+
+        viewModel.IsAdvancedSmtpSettings = true;
+
+        Assert.Equal("2525", viewModel.SmtpPortText);
+        Assert.Equal(EmailSecurityMode.None, viewModel.SelectedSecurityMode);
+        Assert.False(viewModel.AllowUnencryptedInternalRelay);
+    }
+
+    [Fact]
+    public void AdvancedMode_ChangingAwayFromRelayClearsRelayConfirmation()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.IsAdvancedSmtpSettings = true;
+        viewModel.SelectedSecurityMode = EmailSecurityMode.None;
+        viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.None;
+        viewModel.AllowUnencryptedInternalRelay = true;
+
+        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
+
+        Assert.False(viewModel.AllowUnencryptedInternalRelay);
+    }
+
+    [Fact]
     public async Task TestConnectionAsync_UsesConnectionOperationOnly()
     {
         var service = new StubEmailNotificationTestService();
         var resultDialog = new StubResultDialogService();
         var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
-        viewModel.SmtpPortText = "465";
-        viewModel.SelectedSecurityMode = EmailSecurityMode.SslTls;
+        viewModel.SelectedStandardSmtpPort = 465;
 
         await viewModel.TestConnectionAsync("desktop-test-password");
 
@@ -67,8 +233,7 @@ public sealed class EmailNotificationTestViewModelTests
         var resultDialog = new StubResultDialogService();
         var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
         viewModel.SmtpHost = "smtp.gmail.com";
-        viewModel.SmtpPortText = "587";
-        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
+        viewModel.SelectedStandardSmtpPort = 587;
         viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.None;
         viewModel.Username = string.Empty;
 
@@ -200,7 +365,8 @@ public sealed class EmailNotificationTestViewModelTests
         Assert.Equal(1, service.ConnectionCallCount);
         Assert.Equal(2, resultDialog.CallCount);
         Assert.Equal(NotificationSendStatus.PermanentFailure, resultDialog.Status);
-        Assert.Equal(Strings.EmailValidationConnectionSettings, resultDialog.Message);
+        Assert.Equal(Strings.EmailValidationStandardConnectionSettings, resultDialog.Message);
+        Assert.DoesNotContain("未加密 Relay", resultDialog.Message, StringComparison.Ordinal);
         Assert.Equal("email_configuration_invalid", viewModel.LastErrorCode);
         Assert.NotEqual(successfulCorrelationId, viewModel.LastCorrelationIdDisplay);
     }
@@ -226,8 +392,7 @@ public sealed class EmailNotificationTestViewModelTests
         var service = new StubEmailNotificationTestService();
         var viewModel = CreateReadyViewModel(service);
         viewModel.SmtpHost = "smtp.gmail.com";
-        viewModel.SmtpPortText = "465";
-        viewModel.SelectedSecurityMode = EmailSecurityMode.SslTls;
+        viewModel.SelectedStandardSmtpPort = 465;
         viewModel.TimeoutSecondsText = "60";
 
         await viewModel.TestConnectionAsync("desktop-test-password");
@@ -243,6 +408,8 @@ public sealed class EmailNotificationTestViewModelTests
         Assert.Equal(connection.AuthenticationMode, send.AuthenticationMode);
         Assert.Equal(connection.Username, send.Username);
         Assert.Equal(connection.Timeout, send.Timeout);
+        Assert.Equal(connection.ConfigurationMode, send.ConfigurationMode);
+        Assert.Equal(EmailSmtpConfigurationMode.Standard, send.ConfigurationMode);
         Assert.Equal(EmailSecurityMode.SslTls, send.SecurityMode);
         Assert.Equal(EmailAuthenticationMode.Password, send.AuthenticationMode);
         Assert.Equal("alarm@example.invalid", send.SenderAddress);
@@ -342,8 +509,6 @@ public sealed class EmailNotificationTestViewModelTests
     {
         var viewModel = CreateViewModel(service, confirmation);
         viewModel.SmtpHost = "smtp.example.invalid";
-        viewModel.SmtpPortText = "587";
-        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
         viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.Password;
         viewModel.Username = "smtp-user";
         viewModel.SenderAddress = "alarm@example.invalid";
@@ -359,8 +524,6 @@ public sealed class EmailNotificationTestViewModelTests
     {
         var viewModel = CreateViewModel(service, resultDialog: resultDialog);
         viewModel.SmtpHost = "smtp.example.invalid";
-        viewModel.SmtpPortText = "587";
-        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
         viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.Password;
         viewModel.Username = "smtp-user";
         return viewModel;

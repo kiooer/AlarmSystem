@@ -87,6 +87,8 @@
   <data name="EmailSecurityModeNone" xml:space="preserve"><value>無加密（僅限明確核准的內部 Relay）</value></data>
   <data name="EmailSecurityModeStartTls" xml:space="preserve"><value>STARTTLS（必須升級 TLS）</value></data>
   <data name="EmailSecurityModeSslTls" xml:space="preserve"><value>SSL/TLS（連線即加密）</value></data>
+  <data name="EmailAdvancedSettingsHeader" xml:space="preserve"><value>進階 SMTP 設定</value></data>
+  <data name="EmailAdvancedSettingsHint" xml:space="preserve"><value>僅供核准的內部 Relay 或特殊 SMTP Server 使用。可自訂 Port 與安全模式；TLS 失敗絕不會自動降級為明文。</value></data>
   <data name="EmailAllowUnencryptedRelay" xml:space="preserve"><value>我確認這是明確允許的內部未加密 Relay（不會由 TLS 自動降級）</value></data>
   <data name="EmailAuthenticationModeLabel" xml:space="preserve"><value>驗證模式</value></data>
   <data name="EmailAuthenticationNone" xml:space="preserve"><value>不驗證（企業 Relay）</value></data>
@@ -152,6 +154,7 @@
   <data name="EmailValidationPreview" xml:space="preserve"><value>無法產生 Email 預覽，請檢查測試警報資料。</value></data>
   <data name="EmailValidationPortOrTimeout" xml:space="preserve"><value>SMTP Port 必須是 1–65535，Timeout 必須是 1–120 秒。</value></data>
   <data name="EmailValidationPasswordRequired" xml:space="preserve"><value>密碼驗證模式需要輸入 SMTP 密碼。</value></data>
+  <data name="EmailValidationStandardConnectionSettings" xml:space="preserve"><value>SMTP 連線設定無效。請檢查 Host、驗證帳密與 Timeout；Port 587 固定使用 STARTTLS，Port 465 固定使用 SSL/TLS。</value></data>
   <data name="EmailValidationConnectionSettings" xml:space="preserve"><value>SMTP 連線設定無效。請檢查 Host、安全模式與驗證帳密；未加密 Relay 必須明確確認。</value></data>
   <data name="EmailValidationSettings" xml:space="preserve"><value>SMTP 設定無效。請檢查 Host、安全模式、驗證、寄件者、收件人與群組代碼；未加密 Relay 必須明確確認。</value></data>
   <data name="EmailValidationMessageSettings" xml:space="preserve"><value>Email 寄送設定無效。請檢查寄件者、收件人與收件群組代碼；SMTP 連線設定會沿用目前畫面的 Host、Port、安全模式與驗證方式。</value></data>

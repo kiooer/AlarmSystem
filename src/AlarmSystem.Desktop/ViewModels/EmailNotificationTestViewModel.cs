@@ -25,7 +25,9 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
 
     private string smtpHost = string.Empty;
     private string smtpPortText = "587";
+    private int selectedStandardSmtpPort = EmailSmtpPortSecurityPolicy.StartTlsPort;
     private EmailSecurityMode selectedSecurityMode = EmailSecurityMode.StartTls;
+    private bool isAdvancedSmtpSettings;
     private bool allowUnencryptedInternalRelay;
     private EmailAuthenticationMode selectedAuthenticationMode = EmailAuthenticationMode.Password;
     private string username = string.Empty;
@@ -84,6 +86,8 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         new(EmailSecurityMode.SslTls, Strings.EmailSecurityModeSslTls),
     ];
 
+    public IReadOnlyList<int> StandardSmtpPorts => EmailSmtpPortSecurityPolicy.StandardPorts;
+
     public IReadOnlyList<EmailSelectionOption<EmailAuthenticationMode>> AuthenticationModes
     { get; } =
     [
@@ -110,24 +114,89 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         set => SetConnectionProperty(ref smtpPortText, value);
     }
 
+    public int SelectedStandardSmtpPort
+    {
+        get => selectedStandardSmtpPort;
+        set
+        {
+            if (!EmailSmtpPortSecurityPolicy.TryGetStandardSecurityMode(value, out _))
+            {
+                return;
+            }
+
+            if (SetConnectionProperty(ref selectedStandardSmtpPort, value))
+            {
+                OnPropertyChanged(nameof(ActiveSecurityMode));
+                OnPropertyChanged(nameof(ActiveSecurityModeDisplay));
+            }
+        }
+    }
+
+    public bool IsAdvancedSmtpSettings
+    {
+        get => isAdvancedSmtpSettings;
+        set
+        {
+            if (!SetConnectionProperty(ref isAdvancedSmtpSettings, value))
+            {
+                return;
+            }
+
+            AllowUnencryptedInternalRelay = false;
+            OnPropertyChanged(nameof(IsStandardSmtpSettings));
+            OnPropertyChanged(nameof(ActiveSecurityMode));
+            OnPropertyChanged(nameof(ActiveSecurityModeDisplay));
+            OnPropertyChanged(nameof(IsUnencryptedRelay));
+        }
+    }
+
+    public bool IsStandardSmtpSettings => !IsAdvancedSmtpSettings;
+
     public EmailSecurityMode SelectedSecurityMode
     {
         get => selectedSecurityMode;
         set
         {
+            if (!IsAdvancedSmtpSettings)
+            {
+                return;
+            }
+
             if (SetConnectionProperty(ref selectedSecurityMode, value))
             {
+                if (value != EmailSecurityMode.None)
+                {
+                    AllowUnencryptedInternalRelay = false;
+                }
+
                 OnPropertyChanged(nameof(IsUnencryptedRelay));
+                OnPropertyChanged(nameof(ActiveSecurityMode));
+                OnPropertyChanged(nameof(ActiveSecurityModeDisplay));
             }
         }
     }
 
-    public bool IsUnencryptedRelay => SelectedSecurityMode == EmailSecurityMode.None;
+    public EmailSecurityMode ActiveSecurityMode => IsAdvancedSmtpSettings
+        ? SelectedSecurityMode
+        : EmailSmtpPortSecurityPolicy.GetStandardSecurityMode(SelectedStandardSmtpPort);
+
+    public string ActiveSecurityModeDisplay => GetSecurityModeDisplay(ActiveSecurityMode);
+
+    public bool IsUnencryptedRelay =>
+        IsAdvancedSmtpSettings && SelectedSecurityMode == EmailSecurityMode.None;
 
     public bool AllowUnencryptedInternalRelay
     {
         get => allowUnencryptedInternalRelay;
-        set => SetConnectionProperty(ref allowUnencryptedInternalRelay, value);
+        set
+        {
+            if (value && !IsUnencryptedRelay)
+            {
+                return;
+            }
+
+            SetConnectionProperty(ref allowUnencryptedInternalRelay, value);
+        }
     }
 
     public EmailAuthenticationMode SelectedAuthenticationMode
@@ -137,6 +206,11 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         {
             if (SetConnectionProperty(ref selectedAuthenticationMode, value))
             {
+                if (value != EmailAuthenticationMode.None && IsUnencryptedRelay)
+                {
+                    AllowUnencryptedInternalRelay = false;
+                }
+
                 OnPropertyChanged(nameof(UsesPasswordAuthentication));
             }
         }
@@ -632,7 +706,11 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     {
         options = null!;
         validationMessage = string.Empty;
-        if (!TryParsePort(out var port) || !TryParseTimeout(out var timeout))
+        if (!TryResolveActiveSmtpSettings(
+                out var port,
+                out var securityMode,
+                out var allowUnencryptedInternalRelay) ||
+            !TryParseTimeout(out var timeout))
         {
             validationMessage = Strings.EmailValidationPortOrTimeout;
             return false;
@@ -647,10 +725,13 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         options = new EmailOptions
         {
             Enabled = true,
+            ConfigurationMode = IsAdvancedSmtpSettings
+                ? EmailSmtpConfigurationMode.Advanced
+                : EmailSmtpConfigurationMode.Standard,
             Host = SmtpHost,
             Port = port,
-            SecurityMode = SelectedSecurityMode,
-            AllowUnencryptedInternalRelay = AllowUnencryptedInternalRelay,
+            SecurityMode = securityMode,
+            AllowUnencryptedInternalRelay = allowUnencryptedInternalRelay,
             AuthenticationMode = SelectedAuthenticationMode,
             Username = Username,
             Password = password,
@@ -667,7 +748,9 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         catch (InvalidOperationException)
         {
             options = null!;
-            validationMessage = Strings.EmailValidationConnectionSettings;
+            validationMessage = IsAdvancedSmtpSettings
+                ? Strings.EmailValidationConnectionSettings
+                : Strings.EmailValidationStandardConnectionSettings;
             return false;
         }
 
@@ -731,6 +814,24 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     private bool TryParsePort(out int port) =>
         int.TryParse(SmtpPortText, NumberStyles.None, CultureInfo.InvariantCulture, out port) &&
         port is >= 1 and <= 65535;
+
+    private bool TryResolveActiveSmtpSettings(
+        out int port,
+        out EmailSecurityMode securityMode,
+        out bool allowUnencryptedInternalRelay)
+    {
+        if (!IsAdvancedSmtpSettings)
+        {
+            port = SelectedStandardSmtpPort;
+            securityMode = EmailSmtpPortSecurityPolicy.GetStandardSecurityMode(port);
+            allowUnencryptedInternalRelay = false;
+            return true;
+        }
+
+        securityMode = SelectedSecurityMode;
+        allowUnencryptedInternalRelay = AllowUnencryptedInternalRelay;
+        return TryParsePort(out port);
+    }
 
     private bool TryParseTimeout(out TimeSpan timeout)
     {
@@ -817,10 +918,19 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         string errorCode,
         EmailSmtpFailureKind failureKind)
     {
-        var port = TryParsePort(out var parsedPort) ? parsedPort : 0;
-        var secureSocketOptions = Enum.IsDefined(SelectedSecurityMode)
+        var hasActiveSettings = TryResolveActiveSmtpSettings(
+            out var port,
+            out var securityMode,
+            out _);
+        if (!hasActiveSettings)
+        {
+            port = 0;
+            securityMode = ActiveSecurityMode;
+        }
+
+        var secureSocketOptions = Enum.IsDefined(securityMode)
             ? EmailSmtpSecurityModeMapper
-                .ToSecureSocketOptions(SelectedSecurityMode)
+                .ToSecureSocketOptions(securityMode)
                 .ToString()
             : string.Empty;
 
@@ -834,7 +944,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             SmtpStatusCode: null,
             SocketErrorCode: null,
             DurationMilliseconds: 0,
-            SecurityMode: SelectedSecurityMode,
+            SecurityMode: securityMode,
             Host: SmtpHost,
             Port: port,
             SecureSocketOptions: secureSocketOptions);

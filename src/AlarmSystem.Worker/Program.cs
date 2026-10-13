@@ -83,18 +83,41 @@ builder.Services.AddTransient<INotificationChannel>(services =>
         NotificationFeature.Line));
 
 var emailSection = builder.Configuration.GetSection(EmailOptions.SectionName);
+var configurationModeValue = emailSection["ConfigurationMode"];
 var securityModeValue = emailSection["SecurityMode"];
 var authenticationModeValue = emailSection["AuthenticationMode"];
+var emailConfigurationMode = configurationModeValue is null
+    ? EmailSmtpConfigurationMode.Advanced
+    : Enum.TryParse<EmailSmtpConfigurationMode>(
+        configurationModeValue,
+        ignoreCase: true,
+        out var configurationMode)
+            ? configurationMode
+            : (EmailSmtpConfigurationMode)0;
+var emailPort = int.TryParse(emailSection["Port"], out var configuredEmailPort)
+    ? configuredEmailPort
+    : EmailSmtpPortSecurityPolicy.StartTlsPort;
+var configuredEmailSecurityMode = securityModeValue is null
+    ? EmailSecurityMode.StartTls
+    : Enum.TryParse<EmailSecurityMode>(
+        securityModeValue,
+        ignoreCase: true,
+        out var securityMode)
+            ? securityMode
+            : (EmailSecurityMode)0;
+var emailSecurityMode = emailConfigurationMode == EmailSmtpConfigurationMode.Standard &&
+    EmailSmtpPortSecurityPolicy.TryGetStandardSecurityMode(
+        emailPort,
+        out var standardSecurityMode)
+        ? standardSecurityMode
+        : configuredEmailSecurityMode;
 var emailOptions = new EmailOptions
 {
     Enabled = bool.TryParse(emailSection["Enabled"], out var emailEnabled) && emailEnabled,
+    ConfigurationMode = emailConfigurationMode,
     Host = emailSection["Host"] ?? string.Empty,
-    Port = int.TryParse(emailSection["Port"], out var emailPort) ? emailPort : 587,
-    SecurityMode = securityModeValue is null
-        ? EmailSecurityMode.StartTls
-        : Enum.TryParse<EmailSecurityMode>(securityModeValue, ignoreCase: true, out var securityMode)
-            ? securityMode
-            : (EmailSecurityMode)0,
+    Port = emailPort,
+    SecurityMode = emailSecurityMode,
     AllowUnencryptedInternalRelay =
         bool.TryParse(emailSection["AllowUnencryptedInternalRelay"], out var allowRelay) &&
         allowRelay,

@@ -21,6 +21,36 @@ public sealed class EmailOptionsTests
     }
 
     [Fact]
+    public void ConfigurationMode_DefaultsToAdvancedForLegacySettings()
+    {
+        var options = new EmailOptions();
+
+        Assert.Equal(EmailSmtpConfigurationMode.Advanced, options.ConfigurationMode);
+    }
+
+    [Fact]
+    public void Validate_LegacyCustomPortWithoutConfigurationModeRemainsValid()
+    {
+        var options = new EmailOptions
+        {
+            Enabled = true,
+            Host = "smtp.example.invalid",
+            Port = 2525,
+            SecurityMode = EmailSecurityMode.StartTls,
+            AuthenticationMode = EmailAuthenticationMode.Password,
+            Username = "smtp-user",
+            Password = "unit-test-password",
+            SenderAddress = "alarm@example.invalid",
+            Recipients = ["operator@example.invalid"],
+            DestinationReference = "Operations",
+        };
+
+        options.Validate();
+
+        Assert.Equal(EmailSmtpConfigurationMode.Advanced, options.ConfigurationMode);
+    }
+
+    [Fact]
     public void ValidateSmtpConnection_DoesNotRequireMessageAddressesOrDestination()
     {
         var options = new EmailOptions
@@ -40,13 +70,67 @@ public sealed class EmailOptionsTests
     [Theory]
     [InlineData(465, EmailSecurityMode.SslTls)]
     [InlineData(587, EmailSecurityMode.StartTls)]
-    public void Validate_AcceptsPasswordAuthenticationOverEncryptedSmtp(
+    public void Validate_AcceptsStandardPortSecurityMapping(
         int port,
         EmailSecurityMode securityMode)
     {
-        var options = CreateEnabledOptions(port: port, securityMode: securityMode);
+        var options = CreateEnabledOptions(
+            configurationMode: EmailSmtpConfigurationMode.Standard,
+            port: port,
+            securityMode: securityMode);
 
         options.Validate();
+    }
+
+    [Theory]
+    [InlineData(587, EmailSecurityMode.SslTls)]
+    [InlineData(465, EmailSecurityMode.StartTls)]
+    [InlineData(587, EmailSecurityMode.None)]
+    public void Validate_RejectsIncompatibleStandardPortSecurityMapping(
+        int port,
+        EmailSecurityMode securityMode)
+    {
+        var options = CreateEnabledOptions(
+            configurationMode: EmailSmtpConfigurationMode.Standard,
+            port: port,
+            securityMode: securityMode,
+            authenticationMode: EmailAuthenticationMode.None,
+            allowUnencryptedInternalRelay: securityMode == EmailSecurityMode.None,
+            username: string.Empty,
+            password: string.Empty);
+
+        Assert.Throws<InvalidOperationException>(options.Validate);
+    }
+
+    [Fact]
+    public void Validate_RejectsCustomPortInStandardMode()
+    {
+        var options = CreateEnabledOptions(
+            configurationMode: EmailSmtpConfigurationMode.Standard,
+            port: 2525);
+
+        Assert.Throws<InvalidOperationException>(options.Validate);
+    }
+
+    [Fact]
+    public void Validate_AcceptsCustomPortInAdvancedMode()
+    {
+        var options = CreateEnabledOptions(
+            configurationMode: EmailSmtpConfigurationMode.Advanced,
+            port: 2525,
+            securityMode: EmailSecurityMode.StartTls);
+
+        options.Validate();
+    }
+
+    [Fact]
+    public void Validate_RejectsUnencryptedRelayFlagInStandardMode()
+    {
+        var options = CreateEnabledOptions(
+            configurationMode: EmailSmtpConfigurationMode.Standard,
+            allowUnencryptedInternalRelay: true);
+
+        Assert.Throws<InvalidOperationException>(options.Validate);
     }
 
     [Fact]
@@ -146,6 +230,7 @@ public sealed class EmailOptionsTests
     }
 
     private static EmailOptions CreateEnabledOptions(
+        EmailSmtpConfigurationMode configurationMode = EmailSmtpConfigurationMode.Advanced,
         int port = 587,
         EmailSecurityMode securityMode = EmailSecurityMode.StartTls,
         EmailAuthenticationMode authenticationMode = EmailAuthenticationMode.Password,
@@ -157,6 +242,7 @@ public sealed class EmailOptionsTests
         TimeSpan? timeout = null) => new()
         {
             Enabled = true,
+            ConfigurationMode = configurationMode,
             Host = "smtp.example.invalid",
             Port = port,
             SecurityMode = securityMode,
