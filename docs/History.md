@@ -14,6 +14,59 @@
 
 ---
 
+## 0.0.7 — 修正 Email SMTP 測試介面－待測試（後續提交）
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-13 |
+| 時間 | 11:02:12 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `修正 Email SMTP 測試介面-待測試`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `AlarmSystem.sln`、`README.md`、`docs/History.md`
+- `src/AlarmSystem.Desktop/MainWindow.xaml`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/Services/IEmailNotificationTestService.cs`、`EmailNotificationTestService.cs`
+- `src/AlarmSystem.Desktop/ViewModels/EmailNotificationTestViewModel.cs`
+- `src/AlarmSystem.Infrastructure/AlarmSystem.Infrastructure.csproj`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/IEmailSmtpClient.cs`、`MailKitEmailSmtpClient.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailSmtpDiagnostics.cs`、`EmailSmtpErrorClassifier.cs`、`EmailSmtpNotificationChannel.cs`
+- `src/AlarmSystem.Infrastructure/Properties/AssemblyInfo.cs`
+- `tools/AlarmSystem.SmtpDiagnostic/AlarmSystem.SmtpDiagnostic.csproj`、`Program.cs`
+- `tests/AlarmSystem.Desktop.Tests/Services/EmailNotificationTestServiceTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/EmailNotificationTestViewModelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Email/EmailSmtpNotificationChannelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Email/EmailSmtpIpv4SocketConnectorTests.cs`
+
+### 開發內容與功能
+
+- 強化 Email SMTP 測試與正式 transport 的受控診斷，記錄階段、例外型別、最深層例外、Socket／native／SMTP status code、原始 host、實際 IPv4、port、安全模式、耗時、取消與 timeout 狀態；不記錄密碼、AUTH 資料或郵件本文。
+- 區分連線、驗證、寄送與中斷階段；SMTP QUIT／Dispose 失敗只留下 `email_smtp_disconnect_warning`，不覆蓋已完成的連線測試或成功寄送結果；寄送中斷且結果不明仍回傳 `email_smtp_send_status_unknown`。
+- 新增獨立 `AlarmSystem.SmtpDiagnostic` 工具，直接使用與 Desktop／Worker 相同的 MailKit transport factory，不經 WPF、Email channel、Dongle、SMTP 驗證或寄信，可安全比對 MailKit、.NET、執行架構與連線例外。
+- Email SMTP transport 改為 IPv4 only：以原始 host 做 DNS 解析，只保留 IPv4，使用 IPv4 TCP Socket 依序嘗試全部地址，再把已連線 Socket、原始 host、port 與 `SecureSocketOptions` 交給 MailKit；不使用 IPv6、不固定 Gmail IP，也不降低 TLS／憑證驗證。
+- DNS 沒有 IPv4 時新增明確的可重試錯誤 `email_smtp_ipv4_address_not_found`；既有 `email_timeout`、`email_smtp_transport_error`、TLS、驗證及 SMTP command 錯誤碼維持相容。
+- WPF Email 測試頁顯示安全的 SMTP 階段診斷與實際 IPv4；互動式測試仍直接使用原始 Email transport、不檢查 Dongle，正式 Worker Email 通道仍使用 `LicensedNotificationChannel(NotificationFeature.Email)`。
+
+### 測試與驗證
+
+- `dotnet build AlarmSystem.sln --no-restore -m:1 -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore -m:1 -v:minimal`：232 passed、0 failed、0 skipped（Application 18、Integration 166、Desktop 48）；Domain 測試專案目前沒有測試案例。
+- `dotnet format AlarmSystem.sln --no-restore --verify-no-changes --verbosity minimal`：通過；沙箱內因 named pipe 權限失敗，允許必要權限後完成驗證。
+- `git diff --check`：通過，僅顯示既有工作目錄的 LF／CRLF 轉換提示。
+- 自動測試以注入的 DNS／Socket connect stub 與 `IEmailSmtpClient` fake 驗證 IPv6 過濾、IPv4 輪替、無 IPv4、timeout、取消、錯誤分類、Socket 釋放、TLS callback 未被覆寫、QUIT 警告及 UI 呈現；沒有寄送真實郵件。
+- 以獨立工具實際測試 `smtp.gmail.com:465 / SslOnConnect` 與 `:587 / StartTls`：兩者均解析並完成 IPv4 TCP 連線，但 MailKit TLS 握手回傳 `email_smtp_tls_failed`、`MailKit.Security.SslHandshakeException` 與 native code `-2146893042`，因此安全 SMTP 連線與實際寄送仍標示為待測試，未宣稱通過。
+
+### 設定、相容性與尚待確認
+
+- 沒有新增 IPv4／IPv6 切換設定；Email transport 固定使用 IPv4 only。Port 465 仍使用 `SslOnConnect`，Port 587 仍使用 `StartTls`，沒有停用 TLS、忽略憑證錯誤或自動降級明文。
+- `AlarmSystem.Infrastructure` 新增 logging abstractions 參考供結構化安全診斷使用；沒有變更既有 SMTP 設定鍵、郵件模型、LINE／Teams transport、Dongle License 邊界、資料庫 schema 或 migration。
+- 尚須在實際 Desktop 使用者及 Windows Service 帳號環境驗證 TLS、憑證、SMTP 驗證與寄送；目前實機結果只證實 IPv4 DNS／TCP 路徑已執行，不代表 Gmail 登入或郵件寄送成功。
+- 本次未提交 SMTP 密碼、App Password、Dongle 金鑰、AUTH 內容、郵件本文或其他秘密；未追蹤的架構圖不納入本次提交。
+
+---
+
 ## 0.0.7 — 修正 Email SMTP 測試介面
 
 | 項目 | 內容 |

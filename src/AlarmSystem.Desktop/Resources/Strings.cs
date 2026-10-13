@@ -104,6 +104,30 @@ public static class Strings
     public static string EmailSendTestButton => GetString(nameof(EmailSendTestButton));
     public static string EmailResultSection => GetString(nameof(EmailResultSection));
     public static string EmailSmtpStatusCodeLabel => GetString(nameof(EmailSmtpStatusCodeLabel));
+    public static string EmailSmtpStageLabel => GetString(nameof(EmailSmtpStageLabel));
+    public static string EmailDiagnosticLabel => GetString(nameof(EmailDiagnosticLabel));
+    public static string EmailWarningCodeLabel => GetString(nameof(EmailWarningCodeLabel));
+    public static string EmailCorrelationIdLabel => GetString(nameof(EmailCorrelationIdLabel));
+    public static string EmailSmtpStageConnect => GetString(nameof(EmailSmtpStageConnect));
+    public static string EmailSmtpStageStartTls => GetString(nameof(EmailSmtpStageStartTls));
+    public static string EmailSmtpStageAuthenticate => GetString(nameof(EmailSmtpStageAuthenticate));
+    public static string EmailSmtpStageSend => GetString(nameof(EmailSmtpStageSend));
+    public static string EmailSmtpStageDisconnect => GetString(nameof(EmailSmtpStageDisconnect));
+    public static string EmailDiagnosticNone => GetString(nameof(EmailDiagnosticNone));
+    public static string EmailDiagnosticTimeout => GetString(nameof(EmailDiagnosticTimeout));
+    public static string EmailDiagnosticAuthentication => GetString(nameof(EmailDiagnosticAuthentication));
+    public static string EmailDiagnosticTls => GetString(nameof(EmailDiagnosticTls));
+    public static string EmailDiagnosticSmtpCommand => GetString(nameof(EmailDiagnosticSmtpCommand));
+    public static string EmailDiagnosticTransport => GetString(nameof(EmailDiagnosticTransport));
+    public static string EmailDiagnosticSubmissionStatusUnknown => GetString(nameof(EmailDiagnosticSubmissionStatusUnknown));
+    public static string EmailDiagnosticCancelled => GetString(nameof(EmailDiagnosticCancelled));
+    public static string EmailDiagnosticCleanup => GetString(nameof(EmailDiagnosticCleanup));
+    public static string EmailDiagnosticUnexpected => GetString(nameof(EmailDiagnosticUnexpected));
+    public static string EmailDiagnosticDetailsFormat => GetString(nameof(EmailDiagnosticDetailsFormat));
+
+    public static string EmailDiagnosticYes => GetString(nameof(EmailDiagnosticYes));
+
+    public static string EmailDiagnosticNo => GetString(nameof(EmailDiagnosticNo));
     public static string EmailDefaultMessage => GetString(nameof(EmailDefaultMessage));
     public static string EmailStatusReady => GetString(nameof(EmailStatusReady));
     public static string EmailStatusTestingConnection => GetString(nameof(EmailStatusTestingConnection));
@@ -114,6 +138,8 @@ public static class Strings
     public static string EmailStatusConfirmationCancelled => GetString(nameof(EmailStatusConfirmationCancelled));
     public static string EmailStatusSending => GetString(nameof(EmailStatusSending));
     public static string EmailSendSucceeded => GetString(nameof(EmailSendSucceeded));
+    public static string EmailStatusSucceededWithWarningFormat => GetString(nameof(EmailStatusSucceededWithWarningFormat));
+    public static string EmailStatusDiagnosticFormat => GetString(nameof(EmailStatusDiagnosticFormat));
     public static string EmailStatusRetryableFormat => GetString(nameof(EmailStatusRetryableFormat));
     public static string EmailStatusPermanentFormat => GetString(nameof(EmailStatusPermanentFormat));
     public static string EmailValidationTemplateUnhealthy => GetString(nameof(EmailValidationTemplateUnhealthy));

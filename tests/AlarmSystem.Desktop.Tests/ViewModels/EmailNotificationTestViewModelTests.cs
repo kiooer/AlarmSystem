@@ -43,6 +43,8 @@ public sealed class EmailNotificationTestViewModelTests
         var service = new StubEmailNotificationTestService();
         var resultDialog = new StubResultDialogService();
         var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
+        viewModel.SmtpPortText = "465";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.SslTls;
 
         await viewModel.TestConnectionAsync("desktop-test-password");
 
@@ -50,10 +52,36 @@ public sealed class EmailNotificationTestViewModelTests
         Assert.Equal(0, service.SendCallCount);
         Assert.Empty(service.ConnectionOptions!.Recipients);
         Assert.Empty(service.ConnectionOptions.SenderAddress);
+        Assert.Equal(465, service.ConnectionOptions.Port);
+        Assert.Equal(EmailSecurityMode.SslTls, service.ConnectionOptions.SecurityMode);
         Assert.Equal(Strings.EmailConnectionSucceeded, viewModel.StatusMessage);
         Assert.Equal(1, resultDialog.CallCount);
         Assert.Equal(NotificationSendStatus.Succeeded, resultDialog.Status);
         Assert.Equal(Strings.EmailConnectionSucceeded, resultDialog.Message);
+    }
+
+    [Fact]
+    public async Task TestConnectionAsync_WithoutAuthenticationPassesTlsSettingsWithoutPassword()
+    {
+        var service = new StubEmailNotificationTestService();
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
+        viewModel.SmtpHost = "smtp.gmail.com";
+        viewModel.SmtpPortText = "587";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.StartTls;
+        viewModel.SelectedAuthenticationMode = EmailAuthenticationMode.None;
+        viewModel.Username = string.Empty;
+
+        await viewModel.TestConnectionAsync(string.Empty);
+
+        Assert.Equal(1, service.ConnectionCallCount);
+        Assert.Equal("smtp.gmail.com", service.ConnectionOptions!.Host);
+        Assert.Equal(587, service.ConnectionOptions.Port);
+        Assert.Equal(EmailSecurityMode.StartTls, service.ConnectionOptions.SecurityMode);
+        Assert.Equal(
+            EmailAuthenticationMode.None,
+            service.ConnectionOptions.AuthenticationMode);
+        Assert.Equal(NotificationSendStatus.Succeeded, viewModel.LastSendStatus);
     }
 
     [Fact]
@@ -71,6 +99,71 @@ public sealed class EmailNotificationTestViewModelTests
         Assert.Equal(1, resultDialog.CallCount);
         Assert.Equal(NotificationSendStatus.RetryableFailure, resultDialog.Status);
         Assert.Contains("email_timeout", resultDialog.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestConnectionAsync_WhenTransportFailsShowsSafeStageDiagnostic()
+    {
+        var correlationId = Guid.Parse("9db73cce-d805-4e93-b353-4a08fb1171da");
+        var service = new StubEmailNotificationTestService
+        {
+            ConnectionExecution = new EmailSmtpExecutionResult(
+                NotificationSendResult.Retryable("email_smtp_transport_error"),
+                [new EmailSmtpStageDiagnostic(
+                    correlationId,
+                    EmailSmtpStage.Connect,
+                    EmailSmtpStageResult.Failed,
+                    "email_smtp_transport_error",
+                    "SocketException",
+                    EmailSmtpFailureKind.Transport,
+                    null,
+                    System.Net.Sockets.SocketError.ConnectionRefused,
+                    125,
+                    EmailSecurityMode.StartTls,
+                    Ipv4Address: "192.0.2.20")]),
+        };
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Contains(Strings.EmailSmtpStageConnect, viewModel.LastSmtpStageDisplay);
+        Assert.Contains(Strings.EmailDiagnosticTransport, viewModel.LastDiagnosticDetailDisplay);
+        Assert.Contains("SocketException", viewModel.LastDiagnosticDetailDisplay);
+        Assert.Contains("192.0.2.20", viewModel.LastDiagnosticDetailDisplay);
+        Assert.Equal(correlationId.ToString("D"), viewModel.LastCorrelationIdDisplay);
+        Assert.Contains(Strings.EmailSmtpStageConnect, resultDialog.Message);
+        Assert.DoesNotContain("desktop-test-password", resultDialog.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestConnectionAsync_WhenDisconnectWarnsStillShowsSuccess()
+    {
+        var service = new StubEmailNotificationTestService
+        {
+            ConnectionExecution = new EmailSmtpExecutionResult(
+                NotificationSendResult.Success(),
+                [new EmailSmtpStageDiagnostic(
+                    Guid.NewGuid(),
+                    EmailSmtpStage.Disconnect,
+                    EmailSmtpStageResult.Warning,
+                    "email_smtp_disconnect_warning",
+                    "IOException",
+                    EmailSmtpFailureKind.Transport,
+                    null,
+                    null,
+                    20,
+                    EmailSecurityMode.StartTls)]),
+        };
+        var resultDialog = new StubResultDialogService();
+        var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+
+        Assert.Equal(NotificationSendStatus.Succeeded, viewModel.LastSendStatus);
+        Assert.Equal("email_smtp_disconnect_warning", viewModel.LastWarningCode);
+        Assert.Contains(Strings.EmailSmtpStageDisconnect, viewModel.StatusMessage);
+        Assert.Contains("email_smtp_disconnect_warning", resultDialog.Message);
     }
 
     [Fact]
@@ -210,6 +303,8 @@ public sealed class EmailNotificationTestViewModelTests
         public NotificationSendResult ConnectionResult { get; init; } =
             NotificationSendResult.Success();
 
+        public EmailSmtpExecutionResult? ConnectionExecution { get; init; }
+
         public int ConnectionCallCount { get; private set; }
 
         public int SendCallCount { get; private set; }
@@ -218,23 +313,27 @@ public sealed class EmailNotificationTestViewModelTests
 
         public EmailOptions? ConnectionOptions { get; private set; }
 
-        public Task<NotificationSendResult> TestConnectionAsync(
+        public Task<EmailSmtpExecutionResult> TestConnectionAsync(
             EmailOptions options,
             CancellationToken cancellationToken)
         {
             ConnectionCallCount++;
             ConnectionOptions = options;
-            return Task.FromResult(ConnectionResult);
+            return Task.FromResult(
+                ConnectionExecution ??
+                EmailSmtpExecutionResult.WithoutDiagnostics(ConnectionResult));
         }
 
-        public Task<NotificationSendResult> SendAsync(
+        public Task<EmailSmtpExecutionResult> SendAsync(
             EmailOptions options,
             AlarmNotification notification,
             CancellationToken cancellationToken)
         {
             SendCallCount++;
             Notification = notification;
-            return Task.FromResult(NotificationSendResult.Success());
+            return Task.FromResult(
+                EmailSmtpExecutionResult.WithoutDiagnostics(
+                    NotificationSendResult.Success()));
         }
     }
 

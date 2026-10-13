@@ -25,6 +25,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlarmSystem.IntegrationTest
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlarmSystem.Desktop.Tests", "tests\AlarmSystem.Desktop.Tests\AlarmSystem.Desktop.Tests.csproj", "{8DDF6D4E-0A4F-4B59-993A-E72A9A728F14}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlarmSystem.SmtpDiagnostic", "tools\AlarmSystem.SmtpDiagnostic\AlarmSystem.SmtpDiagnostic.csproj", "{031E481C-6A43-4972-AB75-96AD8F89FE72}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -143,6 +147,18 @@ Global
 		{8DDF6D4E-0A4F-4B59-993A-E72A9A728F14}.Release|x64.Build.0 = Release|Any CPU
 		{8DDF6D4E-0A4F-4B59-993A-E72A9A728F14}.Release|x86.ActiveCfg = Release|Any CPU
 		{8DDF6D4E-0A4F-4B59-993A-E72A9A728F14}.Release|x86.Build.0 = Release|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Debug|x64.Build.0 = Debug|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Debug|x86.Build.0 = Debug|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Release|x64.ActiveCfg = Release|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Release|x64.Build.0 = Release|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Release|x86.ActiveCfg = Release|Any CPU
+		{031E481C-6A43-4972-AB75-96AD8F89FE72}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -157,5 +173,6 @@ Global
 		{163DD327-1505-4810-B9FA-27A762E7BE98} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{5D1345B0-81DE-450E-B601-1E16F2427A2B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{8DDF6D4E-0A4F-4B59-993A-E72A9A728F14} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{031E481C-6A43-4972-AB75-96AD8F89FE72} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal

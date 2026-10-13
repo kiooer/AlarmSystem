@@ -138,16 +138,25 @@ Notifications__Email__TemplatePath=templates/email-alarm.html
 ```
 
 啟用時會驗證 Host、Port、傳輸安全、驗證模式、寄件者、至少一位收件人、非敏感群組代碼，以及 1–120 秒的
-timeout；設定不完整時 Worker 會在啟動組裝階段拒絕設定，不會嘗試連線。HTML 內容由獨立的
+timeout；同一個 `TimeoutSeconds` 分別套用於 Connect、Authenticate 與 Send 階段。Disconnect 使用獨立的 5 秒清理上限，
+不沿用已取消的主要操作 token，也不新增設定欄位。設定不完整時 Worker 會在啟動組裝階段拒絕設定，不會嘗試連線。HTML 內容由獨立的
 `templates/email-alarm.html` 載入，所有警報動態文字均先做 HTML encoding，並同時建立純文字備援。樣板缺失、
 placeholder 不完整或訊息無效時回傳永久失敗，不會建立 SMTP client。Email adapter 只允許 `ALARM`；`ACK`
 回傳 `email_ack_not_notified` 且不連線。尚未實作的正式 Dispatcher 未來仍須負責新警報、未 ACK 重發條件、上限、
 去重及 outbox，adapter 本身不承擔排程。
 
-SMTP 結果分類如下：連線、協定或 I/O 暫時故障、timeout 與 SMTP 4xx 為可重試；驗證失敗、TLS／不支援設定、
-郵件格式錯誤與 SMTP 5xx 為永久失敗。SMTP 沒有 LINE retry key 等伺服器端冪等保證；若伺服器已接受郵件後，
-在斷線或回應處理階段發生錯誤，呼叫端可能無法確定結果，未來 Dispatcher 重試時存在重複寄送風險，需由 delivery
-ledger 清楚保留每次嘗試。
+SMTP 會分別記錄 Connect（含 MailKit 在 `ConnectAsync` 內完成的 STARTTLS／TLS 協商）、Authenticate、Send 與
+Disconnect 階段，結構化診斷只包含 correlation ID、受控分類、外層／最深層／驗證例外類型、SMTP／Socket／native
+狀態碼、host、port、實際 `SecureSocketOptions`、耗時、取消與 timeout 狀態。它不記錄帳號、密碼、AUTH 資料、
+郵件本文、附件、原始例外訊息或完整 protocol transcript。Connect／Authenticate 階段的連線、
+協定或 I/O 暫時故障、timeout 與 SMTP 4xx 維持可重試；驗證失敗、TLS／不支援設定、郵件格式錯誤與 SMTP 5xx
+為永久失敗。
+
+`SendAsync` 正常返回後即確認主要寄送成功；後續 QUIT／Disconnect 或 Dispose 失敗只記錄
+`email_smtp_disconnect_warning`，不會把成功改成失敗或觸發重送。若 Send 階段因 timeout、Socket、I/O、協定或連線中斷
+而無法確認伺服器是否接受郵件，則回傳永久失敗 `email_smtp_send_status_unknown`，要求人工確認後再決定是否重送。
+SMTP 沒有 LINE retry key 等伺服器端冪等保證；未來 Dispatcher／delivery ledger 必須保留此狀態，不得把它當成一般
+可重試傳輸錯誤直接重送。
 
 ## LINE 發報測試 UI
 
@@ -189,6 +198,8 @@ License；測試成功不代表正式發報已取得授權。未來 Desktop 互�
 
 「測試 SMTP 連線」只要求 SMTP host／port、安全模式、驗證帳密與 timeout，會執行 connect、必要的 authenticate
 與 disconnect，絕不呼叫 SMTP send；完成、失敗、逾時、取消或設定驗證失敗都會立即顯示本地化結果對話框，
+並顯示失敗／警告階段、安全分類、例外類型、Socket 狀態、階段耗時與 correlation ID。QUIT 失敗會顯示非致命警告，
+不會推翻已成功完成的連線驗證或郵件寄送結果。
 寄件者、收件人與群組代碼只在實際寄送時驗證。「寄送測試 Email」
 另需勾選真實寄送確認，再於對話框確認非敏感群組代碼、寄件者、收件人數、EventId 與 Tag。兩種操作都可取消，
 且只存在於 Desktop 互動式測試路徑；它們直接使用原始 Email transport，不檢查 Dongle License。正式 Worker 自動發報
@@ -201,4 +212,28 @@ License；測試成功不代表正式發報已取得授權。未來 Desktop 互�
 3. 確認密碼欄位遮罩顯示；缺少必要欄位、密碼或人工確認時，按下操作按鈕會顯示驗證訊息且不會連線或寄送。
 4. 關閉視窗並重新開啟，確認 SMTP 密碼與輸入設定沒有被保存。
 
-所有 Email 自動測試只使用記憶體內的 `IEmailSmtpClient` fake，不會連線或寄送至任何真實 SMTP server。
+所有 Email 自動測試使用記憶體內的 SMTP fake；IPv4 transport 測試另以注入的 DNS 與 Socket connect stub 驗證
+IPv6 過濾、多個 IPv4 輪替及資源釋放，不會連線或寄送至任何真實 SMTP server。
+
+### MailKit SMTP 獨立連線診斷
+
+`tools/AlarmSystem.SmtpDiagnostic` 直接使用正式環境相同的 IPv4-only MailKit transport factory 執行 `ConnectAsync`；不經 WPF、
+`EmailSmtpNotificationChannel`、Dongle gate、SMTP 驗證或寄信。它只輸出安全診斷欄位，不啟用 protocol logger，
+也不接受帳號或密碼。預設為 Gmail 465／`SslOnConnect`／60 秒：
+
+transport 會以原始 host 進行 DNS 解析，只保留 IPv4 並依序嘗試；TCP 成功後把已連線的 IPv4 Socket 與原始 host
+交給 MailKit，因此 TLS 主機名稱及憑證驗證仍以原始 host 為準，不會固定 IP、不使用 IPv6，也不會在 TLS 失敗時降級。
+
+```text
+dotnet run --project tools/AlarmSystem.SmtpDiagnostic -- smtp.gmail.com 465 SslOnConnect 60
+dotnet run --project tools/AlarmSystem.SmtpDiagnostic -- smtp.gmail.com 587 StartTls 60
+```
+
+輸出包含 MailKit／.NET 版本、程序架構、host、實際 IPv4、port、`SecureSocketOptions`、`IsConnected`／`IsSecure`、耗時、
+外層與最深層例外型別、驗證例外型別、Socket／native／SMTP status code，以及 timeout／呼叫端取消狀態。
+Connect 成功後以獨立 5 秒上限執行 QUIT；QUIT 失敗只列為 `DisconnectWarning`，不改寫 Connect 結果。
+
+若受限 Windows token 下得到 native code `-2146893042`（`0x8009030E`／`SEC_E_NO_CREDENTIALS`），但在一般互動式
+Windows token 下成功，代表 Schannel 無法在受限程序取得 TLS client credential；這不是 Gmail 密碼錯誤，也不能以
+停用憑證驗證或降級明文修正。請從一般 PowerShell／Windows Service 的實際服務帳號執行工具與 Desktop 交叉測試，
+並以相同 .NET runtime、host、port、安全模式與 timeout 比較結果。

@@ -523,6 +523,10 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
               <Label Grid.Row="0" Grid.Column="0"
                      Content="{x:Static resources:Strings.StatusMessageLabel}" />
@@ -541,6 +545,24 @@
                      Content="{x:Static resources:Strings.EmailSmtpStatusCodeLabel}" />
               <TextBlock Grid.Row="3" Grid.Column="1" Margin="5"
                          Text="{Binding LastSmtpStatusCodeDisplay}" />
+              <Label Grid.Row="4" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailSmtpStageLabel}" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Margin="5"
+                         TextWrapping="Wrap"
+                         Text="{Binding LastSmtpStageDisplay}" />
+              <Label Grid.Row="5" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailDiagnosticLabel}" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Margin="5"
+                         TextWrapping="Wrap"
+                         Text="{Binding LastDiagnosticDetailDisplay}" />
+              <Label Grid.Row="6" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailWarningCodeLabel}" />
+              <TextBlock Grid.Row="6" Grid.Column="1" Margin="5"
+                         Text="{Binding LastWarningCodeDisplay}" />
+              <Label Grid.Row="7" Grid.Column="0"
+                     Content="{x:Static resources:Strings.EmailCorrelationIdLabel}" />
+              <TextBlock Grid.Row="7" Grid.Column="1" Margin="5"
+                         Text="{Binding LastCorrelationIdDisplay}" />
             </Grid>
           </GroupBox>
         </StackPanel>

@@ -5,11 +5,11 @@ namespace AlarmSystem.Desktop.Services;
 
 public interface IEmailNotificationTestService
 {
-    Task<NotificationSendResult> TestConnectionAsync(
+    Task<EmailSmtpExecutionResult> TestConnectionAsync(
         EmailOptions options,
         CancellationToken cancellationToken);
 
-    Task<NotificationSendResult> SendAsync(
+    Task<EmailSmtpExecutionResult> SendAsync(
         EmailOptions options,
         AlarmNotification notification,
         CancellationToken cancellationToken);

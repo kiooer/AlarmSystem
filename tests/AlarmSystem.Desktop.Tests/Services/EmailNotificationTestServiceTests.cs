@@ -31,7 +31,7 @@ public sealed class EmailNotificationTestServiceTests
             CreateNotification(),
             CancellationToken.None);
 
-        Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
+        Assert.Equal(NotificationSendStatus.Succeeded, result.Result.Status);
         Assert.Equal(["connect", "authenticate", "send", "disconnect"], client.Calls);
         Assert.Equal(2, client.Message!.To.Count);
     }
@@ -46,7 +46,7 @@ public sealed class EmailNotificationTestServiceTests
             CreateConnectionOptions(),
             CancellationToken.None);
 
-        Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
+        Assert.Equal(NotificationSendStatus.Succeeded, result.Result.Status);
         Assert.Equal(["connect", "authenticate", "disconnect"], client.Calls);
         Assert.Null(client.Message);
     }

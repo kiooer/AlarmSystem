@@ -46,6 +46,9 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     private NotificationSendStatus? lastSendStatus;
     private string? lastErrorCode;
     private int? lastSmtpStatusCode;
+    private EmailSmtpStageDiagnostic? lastDiagnostic;
+    private string? lastWarningCode;
+    private Guid? lastCorrelationId;
     private bool isRealSendConfirmed;
     private bool isBusy;
     private bool suppressPreviewUpdates;
@@ -315,6 +318,48 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     public string LastSmtpStatusCodeDisplay =>
         LastSmtpStatusCode?.ToString(CultureInfo.InvariantCulture) ?? Strings.NotAvailable;
 
+    public string LastSmtpStageDisplay => lastDiagnostic is null
+        ? Strings.NotAvailable
+        : GetStageDisplay(lastDiagnostic.Stage);
+
+    public string LastDiagnosticDetailDisplay => lastDiagnostic is null
+        ? Strings.NotAvailable
+        : string.Format(
+            CultureInfo.CurrentCulture,
+            Strings.EmailDiagnosticDetailsFormat,
+            GetFailureKindDisplay(lastDiagnostic.FailureKind),
+            lastDiagnostic.ExceptionType ?? Strings.NotAvailable,
+            lastDiagnostic.InnerExceptionType ?? Strings.NotAvailable,
+            lastDiagnostic.AuthenticationExceptionType ?? Strings.NotAvailable,
+            lastDiagnostic.SocketErrorCode?.ToString() ?? Strings.NotAvailable,
+            lastDiagnostic.NativeErrorCode?.ToString(CultureInfo.InvariantCulture) ??
+                Strings.NotAvailable,
+            lastDiagnostic.DurationMilliseconds,
+            GetSecurityModeDisplay(lastDiagnostic.SecurityMode),
+            string.IsNullOrWhiteSpace(lastDiagnostic.SecureSocketOptions)
+                ? Strings.NotAvailable
+                : lastDiagnostic.SecureSocketOptions,
+            lastDiagnostic.Ipv4Address ?? Strings.NotAvailable,
+            GetBooleanDisplay(lastDiagnostic.TimeoutTriggered),
+            GetBooleanDisplay(lastDiagnostic.CancellationRequested));
+
+    public string LastWarningCodeDisplay => LastWarningCode ?? Strings.NotAvailable;
+
+    public string? LastWarningCode
+    {
+        get => lastWarningCode;
+        private set
+        {
+            if (SetProperty(ref lastWarningCode, value))
+            {
+                OnPropertyChanged(nameof(LastWarningCodeDisplay));
+            }
+        }
+    }
+
+    public string LastCorrelationIdDisplay =>
+        lastCorrelationId?.ToString("D") ?? Strings.NotAvailable;
+
     public ICommand NewTestDataCommand => newTestDataCommand;
 
     public ICommand UpdatePreviewCommand => updatePreviewCommand;
@@ -401,7 +446,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     }
 
     private async Task ExecuteOperationAsync(
-        Func<CancellationToken, Task<NotificationSendResult>> operation,
+        Func<CancellationToken, Task<EmailSmtpExecutionResult>> operation,
         string pendingMessage,
         string successMessage)
     {
@@ -411,12 +456,26 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         operationCancellation = new CancellationTokenSource();
         try
         {
-            var result = await operation(operationCancellation.Token);
+            var execution = await operation(operationCancellation.Token);
+            var result = execution.Result;
+            var warning = execution.Warning;
+            lastDiagnostic = execution.PrimaryFailure ?? warning;
+            lastCorrelationId = execution.Diagnostics.FirstOrDefault()?.CorrelationId;
+            LastWarningCode = warning?.ErrorCode;
+            OnPropertyChanged(nameof(LastSmtpStageDisplay));
+            OnPropertyChanged(nameof(LastDiagnosticDetailDisplay));
+            OnPropertyChanged(nameof(LastCorrelationIdDisplay));
             LastSendStatus = result.Status;
             LastErrorCode = result.ErrorCode;
-            LastSmtpStatusCode = result.HttpStatusCode;
+            LastSmtpStatusCode = result.HttpStatusCode ?? lastDiagnostic?.SmtpStatusCode;
             StatusMessage = result.Status switch
             {
+                NotificationSendStatus.Succeeded when warning is not null => string.Format(
+                    CultureInfo.CurrentCulture,
+                    Strings.EmailStatusSucceededWithWarningFormat,
+                    successMessage,
+                    GetStageDisplay(warning.Stage),
+                    warning.ErrorCode ?? Strings.NotAvailable),
                 NotificationSendStatus.Succeeded => successMessage,
                 NotificationSendStatus.RetryableFailure => string.Format(
                     CultureInfo.CurrentCulture,
@@ -428,6 +487,18 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
                     result.ErrorCode ?? Strings.NotAvailable),
                 _ => Strings.EmailStatusUnexpectedFailure,
             };
+
+            if (result.Status != NotificationSendStatus.Succeeded && lastDiagnostic is not null)
+            {
+                StatusMessage = string.Concat(
+                    StatusMessage,
+                    Environment.NewLine,
+                    string.Format(
+                        CultureInfo.CurrentCulture,
+                        Strings.EmailStatusDiagnosticFormat,
+                        GetStageDisplay(lastDiagnostic.Stage),
+                        GetFailureKindDisplay(lastDiagnostic.FailureKind)));
+            }
         }
         catch (OperationCanceledException) when (operationCancellation.IsCancellationRequested)
         {
@@ -716,7 +787,52 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         LastSendStatus = null;
         LastErrorCode = null;
         LastSmtpStatusCode = null;
+        lastDiagnostic = null;
+        lastCorrelationId = null;
+        LastWarningCode = null;
+        OnPropertyChanged(nameof(LastSmtpStageDisplay));
+        OnPropertyChanged(nameof(LastDiagnosticDetailDisplay));
+        OnPropertyChanged(nameof(LastCorrelationIdDisplay));
     }
+
+    private static string GetStageDisplay(EmailSmtpStage stage) => stage switch
+    {
+        EmailSmtpStage.Connect => Strings.EmailSmtpStageConnect,
+        EmailSmtpStage.StartTls => Strings.EmailSmtpStageStartTls,
+        EmailSmtpStage.Authenticate => Strings.EmailSmtpStageAuthenticate,
+        EmailSmtpStage.Send => Strings.EmailSmtpStageSend,
+        EmailSmtpStage.Disconnect => Strings.EmailSmtpStageDisconnect,
+        _ => Strings.NotAvailable,
+    };
+
+    private static string GetFailureKindDisplay(EmailSmtpFailureKind failureKind) =>
+        failureKind switch
+        {
+            EmailSmtpFailureKind.None => Strings.EmailDiagnosticNone,
+            EmailSmtpFailureKind.Timeout => Strings.EmailDiagnosticTimeout,
+            EmailSmtpFailureKind.Authentication => Strings.EmailDiagnosticAuthentication,
+            EmailSmtpFailureKind.Tls => Strings.EmailDiagnosticTls,
+            EmailSmtpFailureKind.SmtpCommand => Strings.EmailDiagnosticSmtpCommand,
+            EmailSmtpFailureKind.Transport => Strings.EmailDiagnosticTransport,
+            EmailSmtpFailureKind.SubmissionStatusUnknown =>
+                Strings.EmailDiagnosticSubmissionStatusUnknown,
+            EmailSmtpFailureKind.Cancelled => Strings.EmailDiagnosticCancelled,
+            EmailSmtpFailureKind.Cleanup => Strings.EmailDiagnosticCleanup,
+            EmailSmtpFailureKind.Unexpected => Strings.EmailDiagnosticUnexpected,
+            _ => Strings.NotAvailable,
+        };
+
+    private static string GetSecurityModeDisplay(EmailSecurityMode securityMode) =>
+        securityMode switch
+        {
+            EmailSecurityMode.None => Strings.EmailSecurityModeNone,
+            EmailSecurityMode.StartTls => Strings.EmailSecurityModeStartTls,
+            EmailSecurityMode.SslTls => Strings.EmailSecurityModeSslTls,
+            _ => Strings.NotAvailable,
+        };
+
+    private static string GetBooleanDisplay(bool value) =>
+        value ? Strings.EmailDiagnosticYes : Strings.EmailDiagnosticNo;
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

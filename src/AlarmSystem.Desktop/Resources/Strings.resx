@@ -107,6 +107,28 @@
   <data name="EmailSendTestButton" xml:space="preserve"><value>寄送測試 Email</value></data>
   <data name="EmailResultSection" xml:space="preserve"><value>Email 最近一次測試結果</value></data>
   <data name="EmailSmtpStatusCodeLabel" xml:space="preserve"><value>SMTP 狀態碼</value></data>
+  <data name="EmailSmtpStageLabel" xml:space="preserve"><value>失敗／警告階段</value></data>
+  <data name="EmailDiagnosticLabel" xml:space="preserve"><value>安全診斷資訊</value></data>
+  <data name="EmailWarningCodeLabel" xml:space="preserve"><value>非致命警告碼</value></data>
+  <data name="EmailCorrelationIdLabel" xml:space="preserve"><value>Correlation ID</value></data>
+  <data name="EmailSmtpStageConnect" xml:space="preserve"><value>Connect（包含 SMTP Greeting 與設定的 TLS 協商）</value></data>
+  <data name="EmailSmtpStageStartTls" xml:space="preserve"><value>STARTTLS／TLS 握手</value></data>
+  <data name="EmailSmtpStageAuthenticate" xml:space="preserve"><value>Authenticate</value></data>
+  <data name="EmailSmtpStageSend" xml:space="preserve"><value>Send</value></data>
+  <data name="EmailSmtpStageDisconnect" xml:space="preserve"><value>Disconnect／QUIT</value></data>
+  <data name="EmailDiagnosticNone" xml:space="preserve"><value>無錯誤</value></data>
+  <data name="EmailDiagnosticTimeout" xml:space="preserve"><value>該 SMTP 階段逾時</value></data>
+  <data name="EmailDiagnosticAuthentication" xml:space="preserve"><value>SMTP 身分驗證失敗</value></data>
+  <data name="EmailDiagnosticTls" xml:space="preserve"><value>TLS 握手、憑證驗證或安全模式不相容</value></data>
+  <data name="EmailDiagnosticSmtpCommand" xml:space="preserve"><value>SMTP 伺服器回覆命令錯誤</value></data>
+  <data name="EmailDiagnosticTransport" xml:space="preserve"><value>Socket、I/O 或 SMTP 協定連線中斷</value></data>
+  <data name="EmailDiagnosticSubmissionStatusUnknown" xml:space="preserve"><value>郵件提交結果無法確認；請先人工確認，不要直接重送</value></data>
+  <data name="EmailDiagnosticCancelled" xml:space="preserve"><value>使用者取消操作</value></data>
+  <data name="EmailDiagnosticCleanup" xml:space="preserve"><value>SMTP client 清理失敗</value></data>
+  <data name="EmailDiagnosticUnexpected" xml:space="preserve"><value>未預期的 SMTP 錯誤</value></data>
+  <data name="EmailDiagnosticDetailsFormat" xml:space="preserve"><value>分類：{0}；例外類型：{1}；最深層例外：{2}；驗證例外：{3}；Socket：{4}；Native：{5}；耗時：{6} ms；安全模式：{7}／{8}；IPv4：{9}；逾時觸發：{10}；呼叫端取消：{11}</value></data>
+  <data name="EmailDiagnosticYes" xml:space="preserve"><value>是</value></data>
+  <data name="EmailDiagnosticNo" xml:space="preserve"><value>否</value></data>
   <data name="EmailDefaultMessage" xml:space="preserve"><value>[測試] Email SMTP 警報通知</value></data>
   <data name="EmailStatusReady" xml:space="preserve"><value>請輸入 SMTP 設定；連線測試不寄信。</value></data>
   <data name="EmailStatusTestingConnection" xml:space="preserve"><value>正在測試 SMTP 連線與驗證，不會寄出郵件。</value></data>
@@ -117,6 +139,8 @@
   <data name="EmailStatusConfirmationCancelled" xml:space="preserve"><value>已取消實際寄送，未呼叫 SMTP。</value></data>
   <data name="EmailStatusSending" xml:space="preserve"><value>正在寄送測試 Email。</value></data>
   <data name="EmailSendSucceeded" xml:space="preserve"><value>SMTP 已接受測試郵件。</value></data>
+  <data name="EmailStatusSucceededWithWarningFormat" xml:space="preserve"><value>{0} 非致命警告：{1}（{2}）；已完成的主要操作不會因此重送。</value></data>
+  <data name="EmailStatusDiagnosticFormat" xml:space="preserve"><value>失敗階段：{0}；安全分類：{1}。</value></data>
   <data name="EmailStatusRetryableFormat" xml:space="preserve"><value>Email 暫時性失敗。錯誤碼：{0}。請確認網路、SMTP 服務狀態及寄送結果；Email 沒有伺服器端冪等鍵。</value></data>
   <data name="EmailStatusPermanentFormat" xml:space="preserve"><value>Email 永久失敗或設定錯誤。錯誤碼：{0}。</value></data>
   <data name="EmailValidationTemplateUnhealthy" xml:space="preserve"><value>Email HTML 樣板缺失或無效，未寄送郵件。</value></data>

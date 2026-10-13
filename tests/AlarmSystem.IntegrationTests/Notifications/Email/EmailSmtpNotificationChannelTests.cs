@@ -1,9 +1,11 @@
+using System.ComponentModel;
 using System.Net.Sockets;
 using AlarmSystem.Application.Abstractions.Notifications;
 using AlarmSystem.Domain.Events;
 using AlarmSystem.Infrastructure.Notifications.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 
 namespace AlarmSystem.IntegrationTests.Notifications.Email;
@@ -43,6 +45,19 @@ public sealed class EmailSmtpNotificationChannelTests
         Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
         Assert.Equal(securityMode, client.SecurityMode);
         Assert.Contains("authenticate", client.Calls);
+    }
+
+    [Theory]
+    [InlineData(EmailSecurityMode.None, SecureSocketOptions.None)]
+    [InlineData(EmailSecurityMode.StartTls, SecureSocketOptions.StartTls)]
+    [InlineData(EmailSecurityMode.SslTls, SecureSocketOptions.SslOnConnect)]
+    public void SecurityModeMapper_UsesExplicitMailKitSocketOption(
+        EmailSecurityMode securityMode,
+        SecureSocketOptions expected)
+    {
+        Assert.Equal(
+            expected,
+            EmailSmtpSecurityModeMapper.ToSecureSocketOptions(securityMode));
     }
 
     [Fact]
@@ -149,14 +164,19 @@ public sealed class EmailSmtpNotificationChannelTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
+        var logger = new RecordingLogger<EmailSmtpNotificationChannel>();
         var client = new StubEmailSmtpClient
         {
             ConnectHandler = token => Task.FromCanceled(token),
         };
-        var channel = CreateChannel(client);
+        var channel = CreateChannel(client, logger: logger);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => channel.SendAsync(CreateNotification(), cancellation.Token));
+
+        var log = Assert.Single(logger.Messages);
+        Assert.Contains("CancellationRequested=True", log, StringComparison.Ordinal);
+        Assert.Contains("TimeoutTriggered=False", log, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -229,6 +249,348 @@ public sealed class EmailSmtpNotificationChannelTests
     }
 
     [Fact]
+    public async Task SendAsync_WhenDnsReturnsNoIpv4_UsesExplicitRetryableError()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            ConnectHandler = _ => throw new EmailSmtpIpv4AddressNotFoundException(
+                "smtp.example.invalid"),
+        };
+        var channel = CreateChannel(client);
+
+        var result = await channel.SendAsync(CreateNotification(), CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.RetryableFailure, result.Status);
+        Assert.Equal("email_smtp_ipv4_address_not_found", result.ErrorCode);
+        Assert.Equal(["connect"], client.Calls);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_RecordsConnectFailureStageAndSocketCode()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            ConnectHandler = _ => throw new SocketException((int)SocketError.ConnectionRefused),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        var failure = Assert.Single(
+            execution.Diagnostics,
+            diagnostic => diagnostic.Result == EmailSmtpStageResult.Failed);
+        Assert.Equal(EmailSmtpStage.Connect, failure.Stage);
+        Assert.Equal(EmailSmtpFailureKind.Transport, failure.FailureKind);
+        Assert.Equal("email_smtp_transport_error", failure.ErrorCode);
+        Assert.Equal(typeof(SocketException).FullName, failure.ExceptionType);
+        Assert.Equal(SocketError.ConnectionRefused, failure.SocketErrorCode);
+        Assert.NotNull(failure.NativeErrorCode);
+        Assert.Equal(EmailSecurityMode.StartTls, failure.SecurityMode);
+        Assert.Equal("smtp.example.invalid", failure.Host);
+        Assert.Equal(587, failure.Port);
+        Assert.Equal(nameof(SecureSocketOptions.StartTls), failure.SecureSocketOptions);
+        Assert.False(failure.CancellationRequested);
+        Assert.False(failure.TimeoutTriggered);
+        Assert.NotEqual(Guid.Empty, failure.CorrelationId);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_RecordsSelectedIpv4Address()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            RemoteAddress = "192.0.2.20",
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        var connect = Assert.Single(
+            execution.Diagnostics,
+            diagnostic => diagnostic.Stage == EmailSmtpStage.Connect);
+        Assert.Equal("192.0.2.20", connect.Ipv4Address);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_FindsNestedSocketExceptionAndNativeCode()
+    {
+        var socketException = new SocketException((int)SocketError.ConnectionReset);
+        var client = new StubEmailSmtpClient
+        {
+            ConnectHandler = _ => throw new IOException("Connection failed.", socketException),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        var failure = execution.PrimaryFailure!;
+        Assert.Equal(typeof(IOException).FullName, failure.ExceptionType);
+        Assert.Equal(typeof(SocketException).FullName, failure.InnerExceptionType);
+        Assert.Equal(SocketError.ConnectionReset, failure.SocketErrorCode);
+        Assert.Equal(socketException.NativeErrorCode, failure.NativeErrorCode);
+        Assert.Equal("email_smtp_transport_error", failure.ErrorCode);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_ClassifiesNestedSystemAuthenticationExceptionAsTls()
+    {
+        const int noCredentials = unchecked((int)0x8009030E);
+        var client = new StubEmailSmtpClient
+        {
+            ConnectHandler = _ => throw new IOException(
+                "TLS failed.",
+                new System.Security.Authentication.AuthenticationException(
+                    "Authentication failed.",
+                    new Win32Exception(noCredentials))),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal("email_smtp_tls_failed", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpFailureKind.Tls, execution.PrimaryFailure!.FailureKind);
+        Assert.Equal(
+            typeof(Win32Exception).FullName,
+            execution.PrimaryFailure.InnerExceptionType);
+        Assert.Equal(noCredentials, execution.PrimaryFailure.NativeErrorCode);
+        Assert.Equal(
+            typeof(System.Security.Authentication.AuthenticationException).FullName,
+            execution.PrimaryFailure.AuthenticationExceptionType);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_RecordsTlsFailureAsConnectBecauseMailKitNegotiatesTlsInsideConnect()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            ConnectHandler = _ => throw new SslHandshakeException("Handshake rejected."),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal("email_smtp_tls_failed", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Connect, execution.PrimaryFailure!.Stage);
+        Assert.Equal(EmailSmtpFailureKind.Tls, execution.PrimaryFailure.FailureKind);
+        Assert.Equal(EmailSecurityMode.StartTls, execution.PrimaryFailure.SecurityMode);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_RecordsAuthenticationFailureStage()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            AuthenticateHandler = (_, _, _) => throw new AuthenticationException("Rejected."),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal("email_smtp_authentication_failed", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Authenticate, execution.PrimaryFailure!.Stage);
+        Assert.Equal(EmailSmtpFailureKind.Authentication, execution.PrimaryFailure.FailureKind);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_RecordsAuthenticationTimeoutStage()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            AuthenticateHandler = async (_, _, token) =>
+                await Task.Delay(Timeout.InfiniteTimeSpan, token),
+        };
+        var channel = CreateChannel(
+            client,
+            CreateOptions(timeout: TimeSpan.FromMilliseconds(25)));
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.RetryableFailure, execution.Result.Status);
+        Assert.Equal("email_timeout", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Authenticate, execution.PrimaryFailure!.Stage);
+        Assert.Equal(EmailSmtpFailureKind.Timeout, execution.PrimaryFailure.FailureKind);
+        Assert.True(execution.PrimaryFailure.TimeoutTriggered);
+        Assert.False(execution.PrimaryFailure.CancellationRequested);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_WhenSendAndDisconnectSucceedRecordsBothStages()
+    {
+        var channel = CreateChannel(new StubEmailSmtpClient());
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.Succeeded, execution.Result.Status);
+        Assert.Contains(
+            execution.Diagnostics,
+            diagnostic => diagnostic.Stage == EmailSmtpStage.Send &&
+                          diagnostic.Result == EmailSmtpStageResult.Success);
+        Assert.Contains(
+            execution.Diagnostics,
+            diagnostic => diagnostic.Stage == EmailSmtpStage.Disconnect &&
+                          diagnostic.Result == EmailSmtpStageResult.Success);
+        Assert.DoesNotContain(
+            execution.Diagnostics,
+            diagnostic => diagnostic.Result == EmailSmtpStageResult.Warning);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_WhenSendTransportBreaksMarksSubmissionUnknown()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            SendHandler = (_, _) => throw new IOException("Connection closed."),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.PermanentFailure, execution.Result.Status);
+        Assert.Equal("email_smtp_send_status_unknown", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Send, execution.PrimaryFailure!.Stage);
+        Assert.Equal(
+            EmailSmtpFailureKind.SubmissionStatusUnknown,
+            execution.PrimaryFailure.FailureKind);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_WhenSendTimesOutMarksSubmissionUnknown()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            SendHandler = async (_, token) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return "Unreachable";
+            },
+        };
+        var channel = CreateChannel(
+            client,
+            CreateOptions(timeout: TimeSpan.FromMilliseconds(25)));
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.PermanentFailure, execution.Result.Status);
+        Assert.Equal("email_smtp_send_status_unknown", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Send, execution.PrimaryFailure!.Stage);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_WhenDisconnectFailsKeepsSuccessfulSend()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            DisconnectHandler = _ => throw new IOException("QUIT connection closed."),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.Succeeded, execution.Result.Status);
+        Assert.Null(execution.PrimaryFailure);
+        Assert.Equal("email_smtp_disconnect_warning", execution.Warning!.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Disconnect, execution.Warning.Stage);
+        Assert.True(client.IsDisposed);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenDisconnectFailsStillReturnsSuccess()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            DisconnectHandler = _ => throw new IOException("QUIT connection closed."),
+        };
+        var channel = CreateChannel(client);
+
+        var result = await channel.SendAsync(CreateNotification(), CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.Succeeded, result.Status);
+        Assert.Null(result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_WhenSendAndDisconnectFailPreservesSendFailure()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            SendHandler = (_, _) => throw new SmtpCommandException(
+                SmtpErrorCode.MessageNotAccepted,
+                SmtpStatusCode.MailboxUnavailable,
+                "Rejected."),
+            DisconnectHandler = _ => throw new IOException("QUIT connection closed."),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.SendWithDiagnosticsAsync(
+            CreateNotification(),
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.PermanentFailure, execution.Result.Status);
+        Assert.Equal("email_smtp_command_error", execution.Result.ErrorCode);
+        Assert.Equal(EmailSmtpStage.Send, execution.PrimaryFailure!.Stage);
+        Assert.Equal("email_smtp_disconnect_warning", execution.Warning!.ErrorCode);
+    }
+
+    [Fact]
+    public async Task TestConnectionWithDiagnosticsAsync_WhenDisconnectFailsKeepsSuccessfulTest()
+    {
+        var client = new StubEmailSmtpClient
+        {
+            DisconnectHandler = _ => throw new IOException("QUIT connection closed."),
+        };
+        var channel = CreateChannel(client);
+
+        var execution = await channel.TestConnectionWithDiagnosticsAsync(
+            CancellationToken.None);
+
+        Assert.Equal(NotificationSendStatus.Succeeded, execution.Result.Status);
+        Assert.Equal("email_smtp_disconnect_warning", execution.Warning!.ErrorCode);
+    }
+
+    [Fact]
+    public async Task SendWithDiagnosticsAsync_LogsOnlyControlledFieldsWithoutSecrets()
+    {
+        const string password = "private-password-not-for-output";
+        var logger = new RecordingLogger<EmailSmtpNotificationChannel>();
+        var client = new StubEmailSmtpClient
+        {
+            AuthenticateHandler = (_, _, _) => throw new InvalidOperationException(password),
+        };
+        var channel = CreateChannel(client, CreateOptions(password: password), logger);
+
+        await channel.SendWithDiagnosticsAsync(CreateNotification(), CancellationToken.None);
+
+        var log = string.Join(Environment.NewLine, logger.Messages);
+        Assert.DoesNotContain(password, log, StringComparison.Ordinal);
+        Assert.DoesNotContain("smtp-user", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("Test message", log, StringComparison.Ordinal);
+        Assert.Contains(nameof(InvalidOperationException), log, StringComparison.Ordinal);
+        Assert.Contains("Authenticate", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SendAsync_DoesNotExposePasswordInFailureResult()
     {
         const string password = "private-password-not-for-output";
@@ -256,13 +618,16 @@ public sealed class EmailSmtpNotificationChannelTests
 
     private static EmailSmtpNotificationChannel CreateChannel(
         StubEmailSmtpClient client,
-        EmailOptions? options = null) => CreateChannel(
+        EmailOptions? options = null,
+        ILogger<EmailSmtpNotificationChannel>? logger = null) => CreateChannel(
             new StubEmailSmtpClientFactory(client),
-            options ?? CreateOptions());
+            options ?? CreateOptions(),
+            logger);
 
     private static EmailSmtpNotificationChannel CreateChannel(
         IEmailSmtpClientFactory factory,
-        EmailOptions options)
+        EmailOptions options,
+        ILogger<EmailSmtpNotificationChannel>? logger = null)
     {
         var builder = new EmailMessageBuilder();
         return new EmailSmtpNotificationChannel(
@@ -272,7 +637,8 @@ public sealed class EmailSmtpNotificationChannelTests
                 "templates",
                 "email-alarm.html"), builder),
             builder,
-            options);
+            options,
+            logger);
     }
 
     private static EmailOptions CreateOptions(
@@ -332,6 +698,8 @@ public sealed class EmailSmtpNotificationChannelTests
 
     private sealed class StubEmailSmtpClient : IEmailSmtpClient
     {
+        public string? RemoteAddress { get; init; }
+
         public Func<CancellationToken, Task> ConnectHandler { get; init; } =
             _ => Task.CompletedTask;
 
@@ -340,6 +708,9 @@ public sealed class EmailSmtpNotificationChannelTests
 
         public Func<MimeMessage, CancellationToken, Task<string>> SendHandler { get; init; } =
             (_, _) => Task.FromResult("Accepted");
+
+        public Func<CancellationToken, Task> DisconnectHandler { get; init; } =
+            _ => Task.CompletedTask;
 
         public List<string> Calls { get; } = [];
 
@@ -350,6 +721,8 @@ public sealed class EmailSmtpNotificationChannelTests
         public EmailSecurityMode? SecurityMode { get; private set; }
 
         public MimeMessage? Message { get; private set; }
+
+        public bool IsDisposed { get; private set; }
 
         public async Task ConnectAsync(
             string host,
@@ -382,12 +755,34 @@ public sealed class EmailSmtpNotificationChannelTests
             return await SendHandler(message, cancellationToken);
         }
 
-        public Task DisconnectAsync(bool quit, CancellationToken cancellationToken)
+        public async Task DisconnectAsync(bool quit, CancellationToken cancellationToken)
         {
             Calls.Add("disconnect");
-            return Task.CompletedTask;
+            await DisconnectHandler(cancellationToken);
         }
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public ValueTask DisposeAsync()
+        {
+            IsDisposed = true;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
     }
 }

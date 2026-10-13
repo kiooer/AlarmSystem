@@ -4,6 +4,12 @@ namespace AlarmSystem.Infrastructure.Notifications.Email;
 
 public interface IEmailSmtpClient : IAsyncDisposable
 {
+    bool IsConnected => false;
+
+    bool IsSecure => false;
+
+    string? RemoteAddress => null;
+
     Task ConnectAsync(
         string host,
         int port,

@@ -8,16 +8,16 @@ public sealed class EmailNotificationTestService(
     EmailTemplateProvider templateProvider,
     EmailMessageBuilder messageBuilder) : IEmailNotificationTestService
 {
-    public async Task<NotificationSendResult> TestConnectionAsync(
+    public async Task<EmailSmtpExecutionResult> TestConnectionAsync(
         EmailOptions options,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         var channel = CreateTransport(options);
-        return await channel.TestConnectionAsync(cancellationToken);
+        return await channel.TestConnectionWithDiagnosticsAsync(cancellationToken);
     }
 
-    public async Task<NotificationSendResult> SendAsync(
+    public async Task<EmailSmtpExecutionResult> SendAsync(
         EmailOptions options,
         AlarmNotification notification,
         CancellationToken cancellationToken)
@@ -26,7 +26,7 @@ public sealed class EmailNotificationTestService(
         ArgumentNullException.ThrowIfNull(notification);
 
         var channel = CreateTransport(options);
-        return await channel.SendAsync(notification, cancellationToken);
+        return await channel.SendWithDiagnosticsAsync(notification, cancellationToken);
     }
 
     private EmailSmtpNotificationChannel CreateTransport(EmailOptions options) => new(
