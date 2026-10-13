@@ -373,12 +373,16 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             return;
         }
 
-        ResetLastResult();
+        var operationCorrelationId = StartNewOperation();
         if (!TryCreateConnectionOptions(password, out var options, out var validationMessage))
         {
             if (!string.IsNullOrEmpty(validationMessage))
             {
-                StatusMessage = validationMessage;
+                CompleteLocalFailure(
+                    operationCorrelationId,
+                    validationMessage,
+                    "email_configuration_invalid",
+                    EmailSmtpFailureKind.Configuration);
             }
 
             ShowConnectionResult();
@@ -388,7 +392,8 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         await ExecuteOperationAsync(
             token => testService.TestConnectionAsync(options, token),
             Strings.EmailStatusTestingConnection,
-            Strings.EmailConnectionSucceeded);
+            Strings.EmailConnectionSucceeded,
+            operationCorrelationId);
         ShowConnectionResult();
     }
 
@@ -399,14 +404,28 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             return;
         }
 
-        if (!TryCreateOptions(password, out var options, out var validationMessage) ||
-            !TryCreateNotification(out var notification, out validationMessage))
+        var operationCorrelationId = StartNewOperation();
+        if (!TryCreateSendOptions(password, out var options, out var validationMessage))
         {
             if (!string.IsNullOrEmpty(validationMessage))
             {
-                StatusMessage = validationMessage;
+                CompleteLocalFailure(
+                    operationCorrelationId,
+                    validationMessage,
+                    "email_configuration_invalid",
+                    EmailSmtpFailureKind.Configuration);
             }
 
+            return;
+        }
+
+        if (!TryCreateNotification(out var notification, out validationMessage))
+        {
+            CompleteLocalFailure(
+                operationCorrelationId,
+                validationMessage,
+                "email_message_invalid",
+                EmailSmtpFailureKind.Configuration);
             return;
         }
 
@@ -428,7 +447,11 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         }
         catch (Exception)
         {
-            StatusMessage = Strings.EmailStatusUnexpectedFailure;
+            CompleteLocalFailure(
+                operationCorrelationId,
+                Strings.EmailStatusUnexpectedFailure,
+                "email_smtp_unexpected_error",
+                EmailSmtpFailureKind.Unexpected);
             return;
         }
 
@@ -442,15 +465,16 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         await ExecuteOperationAsync(
             token => testService.SendAsync(options, notification, token),
             Strings.EmailStatusSending,
-            Strings.EmailSendSucceeded);
+            Strings.EmailSendSucceeded,
+            operationCorrelationId);
     }
 
     private async Task ExecuteOperationAsync(
         Func<CancellationToken, Task<EmailSmtpExecutionResult>> operation,
         string pendingMessage,
-        string successMessage)
+        string successMessage,
+        Guid operationCorrelationId)
     {
-        ResetLastResult();
         StatusMessage = pendingMessage;
         IsBusy = true;
         operationCancellation = new CancellationTokenSource();
@@ -460,7 +484,8 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             var result = execution.Result;
             var warning = execution.Warning;
             lastDiagnostic = execution.PrimaryFailure ?? warning;
-            lastCorrelationId = execution.Diagnostics.FirstOrDefault()?.CorrelationId;
+            lastCorrelationId = execution.Diagnostics.FirstOrDefault()?.CorrelationId ??
+                operationCorrelationId;
             LastWarningCode = warning?.ErrorCode;
             OnPropertyChanged(nameof(LastSmtpStageDisplay));
             OnPropertyChanged(nameof(LastDiagnosticDetailDisplay));
@@ -506,7 +531,11 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         }
         catch (Exception)
         {
-            StatusMessage = Strings.EmailStatusUnexpectedFailure;
+            CompleteLocalFailure(
+                operationCorrelationId,
+                Strings.EmailStatusUnexpectedFailure,
+                "email_smtp_unexpected_error",
+                EmailSmtpFailureKind.Unexpected);
         }
         finally
         {
@@ -580,49 +609,24 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
     private bool TryCreateConnectionOptions(
         string password,
         out EmailOptions options,
-        out string validationMessage)
-    {
-        options = null!;
-        validationMessage = string.Empty;
-        if (!TryParsePort(out var port) || !TryParseTimeout(out var timeout))
-        {
-            validationMessage = Strings.EmailValidationPortOrTimeout;
-            return false;
-        }
+        out string validationMessage) => TryCreateEmailOptions(
+            password,
+            includeMessageSettings: false,
+            out options,
+            out validationMessage);
 
-        if (UsesPasswordAuthentication && string.IsNullOrWhiteSpace(password))
-        {
-            validationMessage = Strings.EmailValidationPasswordRequired;
-            return false;
-        }
-
-        options = new EmailOptions
-        {
-            Enabled = true,
-            Host = SmtpHost,
-            Port = port,
-            SecurityMode = SelectedSecurityMode,
-            AllowUnencryptedInternalRelay = AllowUnencryptedInternalRelay,
-            AuthenticationMode = SelectedAuthenticationMode,
-            Username = Username,
-            Password = password,
-            Timeout = timeout,
-        };
-        try
-        {
-            options.ValidateSmtpConnection();
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            options = null!;
-            validationMessage = Strings.EmailValidationConnectionSettings;
-            return false;
-        }
-    }
-
-    private bool TryCreateOptions(
+    private bool TryCreateSendOptions(
         string password,
+        out EmailOptions options,
+        out string validationMessage) => TryCreateEmailOptions(
+            password,
+            includeMessageSettings: true,
+            out options,
+            out validationMessage);
+
+    private bool TryCreateEmailOptions(
+        string password,
+        bool includeMessageSettings,
         out EmailOptions options,
         out string validationMessage)
     {
@@ -650,12 +654,28 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             AuthenticationMode = SelectedAuthenticationMode,
             Username = Username,
             Password = password,
-            SenderAddress = SenderAddress,
-            SenderDisplayName = SenderDisplayName,
-            Recipients = ParseRecipients(),
-            DestinationReference = DestinationReference,
+            SenderAddress = includeMessageSettings ? SenderAddress : string.Empty,
+            SenderDisplayName = includeMessageSettings ? SenderDisplayName : "AlarmSystem",
+            Recipients = includeMessageSettings ? ParseRecipients() : [],
+            DestinationReference = includeMessageSettings ? DestinationReference : string.Empty,
             Timeout = timeout,
         };
+        try
+        {
+            options.ValidateSmtpConnection();
+        }
+        catch (InvalidOperationException)
+        {
+            options = null!;
+            validationMessage = Strings.EmailValidationConnectionSettings;
+            return false;
+        }
+
+        if (!includeMessageSettings)
+        {
+            return true;
+        }
+
         try
         {
             options.Validate();
@@ -664,7 +684,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         catch (InvalidOperationException)
         {
             options = null!;
-            validationMessage = Strings.EmailValidationSettings;
+            validationMessage = Strings.EmailValidationMessageSettings;
             return false;
         }
     }
@@ -782,6 +802,53 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanSend));
     }
 
+    private Guid StartNewOperation()
+    {
+        ResetLastResult();
+        var correlationId = Guid.NewGuid();
+        lastCorrelationId = correlationId;
+        OnPropertyChanged(nameof(LastCorrelationIdDisplay));
+        return correlationId;
+    }
+
+    private void CompleteLocalFailure(
+        Guid correlationId,
+        string message,
+        string errorCode,
+        EmailSmtpFailureKind failureKind)
+    {
+        var port = TryParsePort(out var parsedPort) ? parsedPort : 0;
+        var secureSocketOptions = Enum.IsDefined(SelectedSecurityMode)
+            ? EmailSmtpSecurityModeMapper
+                .ToSecureSocketOptions(SelectedSecurityMode)
+                .ToString()
+            : string.Empty;
+
+        lastDiagnostic = new EmailSmtpStageDiagnostic(
+            CorrelationId: correlationId,
+            Stage: EmailSmtpStage.Validation,
+            Result: EmailSmtpStageResult.Failed,
+            ErrorCode: errorCode,
+            ExceptionType: null,
+            FailureKind: failureKind,
+            SmtpStatusCode: null,
+            SocketErrorCode: null,
+            DurationMilliseconds: 0,
+            SecurityMode: SelectedSecurityMode,
+            Host: SmtpHost,
+            Port: port,
+            SecureSocketOptions: secureSocketOptions);
+        lastCorrelationId = correlationId;
+        LastWarningCode = null;
+        LastSendStatus = NotificationSendStatus.PermanentFailure;
+        LastErrorCode = errorCode;
+        LastSmtpStatusCode = null;
+        StatusMessage = message;
+        OnPropertyChanged(nameof(LastSmtpStageDisplay));
+        OnPropertyChanged(nameof(LastDiagnosticDetailDisplay));
+        OnPropertyChanged(nameof(LastCorrelationIdDisplay));
+    }
+
     private void ResetLastResult()
     {
         LastSendStatus = null;
@@ -797,6 +864,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
 
     private static string GetStageDisplay(EmailSmtpStage stage) => stage switch
     {
+        EmailSmtpStage.Validation => Strings.EmailSmtpStageValidation,
         EmailSmtpStage.Connect => Strings.EmailSmtpStageConnect,
         EmailSmtpStage.StartTls => Strings.EmailSmtpStageStartTls,
         EmailSmtpStage.Authenticate => Strings.EmailSmtpStageAuthenticate,
@@ -819,6 +887,7 @@ public sealed class EmailNotificationTestViewModel : INotifyPropertyChanged
             EmailSmtpFailureKind.Cancelled => Strings.EmailDiagnosticCancelled,
             EmailSmtpFailureKind.Cleanup => Strings.EmailDiagnosticCleanup,
             EmailSmtpFailureKind.Unexpected => Strings.EmailDiagnosticUnexpected,
+            EmailSmtpFailureKind.Configuration => Strings.EmailDiagnosticConfiguration,
             _ => Strings.NotAvailable,
         };
 

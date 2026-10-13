@@ -177,8 +177,12 @@ public sealed class EmailNotificationTestViewModelTests
 
         Assert.Equal(0, service.ConnectionCallCount);
         Assert.Equal(1, resultDialog.CallCount);
-        Assert.Null(resultDialog.Status);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, resultDialog.Status);
         Assert.Equal(Strings.EmailValidationPasswordRequired, resultDialog.Message);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, viewModel.LastSendStatus);
+        Assert.Equal("email_configuration_invalid", viewModel.LastErrorCode);
+        Assert.Equal(Strings.EmailSmtpStageValidation, viewModel.LastSmtpStageDisplay);
+        Assert.NotEqual(Strings.NotAvailable, viewModel.LastCorrelationIdDisplay);
     }
 
     [Fact]
@@ -188,14 +192,17 @@ public sealed class EmailNotificationTestViewModelTests
         var resultDialog = new StubResultDialogService();
         var viewModel = CreateConnectionReadyViewModel(service, resultDialog);
         await viewModel.TestConnectionAsync("desktop-test-password");
+        var successfulCorrelationId = viewModel.LastCorrelationIdDisplay;
         viewModel.SmtpHost = string.Empty;
 
         await viewModel.TestConnectionAsync("desktop-test-password");
 
         Assert.Equal(1, service.ConnectionCallCount);
         Assert.Equal(2, resultDialog.CallCount);
-        Assert.Null(resultDialog.Status);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, resultDialog.Status);
         Assert.Equal(Strings.EmailValidationConnectionSettings, resultDialog.Message);
+        Assert.Equal("email_configuration_invalid", viewModel.LastErrorCode);
+        Assert.NotEqual(successfulCorrelationId, viewModel.LastCorrelationIdDisplay);
     }
 
     [Fact]
@@ -208,6 +215,64 @@ public sealed class EmailNotificationTestViewModelTests
 
         Assert.Equal(0, service.SendCallCount);
         Assert.Equal(Strings.EmailValidationPasswordRequired, viewModel.StatusMessage);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, viewModel.LastSendStatus);
+        Assert.Equal("email_configuration_invalid", viewModel.LastErrorCode);
+        Assert.Equal(Strings.EmailSmtpStageValidation, viewModel.LastSmtpStageDisplay);
+    }
+
+    [Fact]
+    public async Task ConnectionAndSend_UseTheSameSmtpSettingsSnapshot()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateReadyViewModel(service);
+        viewModel.SmtpHost = "smtp.gmail.com";
+        viewModel.SmtpPortText = "465";
+        viewModel.SelectedSecurityMode = EmailSecurityMode.SslTls;
+        viewModel.TimeoutSecondsText = "60";
+
+        await viewModel.TestConnectionAsync("desktop-test-password");
+        var connectionCorrelationId = viewModel.LastCorrelationIdDisplay;
+        await viewModel.SendAsync("desktop-test-password");
+
+        var connection = service.ConnectionOptions!;
+        var send = service.SendOptions!;
+        Assert.Equal(connection.Host, send.Host);
+        Assert.Equal(connection.Port, send.Port);
+        Assert.Equal(connection.SecurityMode, send.SecurityMode);
+        Assert.Equal(connection.AllowUnencryptedInternalRelay, send.AllowUnencryptedInternalRelay);
+        Assert.Equal(connection.AuthenticationMode, send.AuthenticationMode);
+        Assert.Equal(connection.Username, send.Username);
+        Assert.Equal(connection.Timeout, send.Timeout);
+        Assert.Equal(EmailSecurityMode.SslTls, send.SecurityMode);
+        Assert.Equal(EmailAuthenticationMode.Password, send.AuthenticationMode);
+        Assert.Equal("alarm@example.invalid", send.SenderAddress);
+        Assert.Equal(["one@example.invalid", "two@example.invalid"], send.Recipients);
+        Assert.Equal("Operations", send.DestinationReference);
+        Assert.NotEqual(connectionCorrelationId, viewModel.LastCorrelationIdDisplay);
+    }
+
+    [Fact]
+    public async Task SendAsync_MessageSettingsFailureReplacesPreviousConnectionSuccess()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateReadyViewModel(service);
+        await viewModel.TestConnectionAsync("desktop-test-password");
+        var connectionCorrelationId = viewModel.LastCorrelationIdDisplay;
+        viewModel.DestinationReference = string.Empty;
+
+        await viewModel.SendAsync("desktop-test-password");
+
+        Assert.Equal(0, service.SendCallCount);
+        Assert.Equal(Strings.EmailValidationMessageSettings, viewModel.StatusMessage);
+        Assert.DoesNotContain("未加密 Relay", viewModel.StatusMessage, StringComparison.Ordinal);
+        Assert.Equal(NotificationSendStatus.PermanentFailure, viewModel.LastSendStatus);
+        Assert.Equal("email_configuration_invalid", viewModel.LastErrorCode);
+        Assert.Equal(Strings.EmailSmtpStageValidation, viewModel.LastSmtpStageDisplay);
+        Assert.Contains(
+            Strings.EmailDiagnosticConfiguration,
+            viewModel.LastDiagnosticDetailDisplay,
+            StringComparison.Ordinal);
+        Assert.NotEqual(connectionCorrelationId, viewModel.LastCorrelationIdDisplay);
     }
 
     [Fact]
@@ -238,6 +303,25 @@ public sealed class EmailNotificationTestViewModelTests
 
         Assert.Equal(0, service.SendCallCount);
         Assert.Equal(Strings.EmailStatusConfirmationCancelled, viewModel.StatusMessage);
+    }
+
+    [Fact]
+    public async Task SendAsync_ConfirmationRequiredClearsPreviousConnectionResult()
+    {
+        var service = new StubEmailNotificationTestService();
+        var viewModel = CreateReadyViewModel(service);
+        await viewModel.TestConnectionAsync("desktop-test-password");
+        var connectionCorrelationId = viewModel.LastCorrelationIdDisplay;
+        viewModel.IsRealSendConfirmed = false;
+
+        await viewModel.SendAsync("desktop-test-password");
+
+        Assert.Equal(0, service.SendCallCount);
+        Assert.Equal(Strings.EmailValidationConfirmationRequired, viewModel.StatusMessage);
+        Assert.Null(viewModel.LastSendStatus);
+        Assert.Null(viewModel.LastErrorCode);
+        Assert.Equal(Strings.NotAvailable, viewModel.LastSmtpStageDisplay);
+        Assert.NotEqual(connectionCorrelationId, viewModel.LastCorrelationIdDisplay);
     }
 
     [Fact]
@@ -313,6 +397,8 @@ public sealed class EmailNotificationTestViewModelTests
 
         public EmailOptions? ConnectionOptions { get; private set; }
 
+        public EmailOptions? SendOptions { get; private set; }
+
         public Task<EmailSmtpExecutionResult> TestConnectionAsync(
             EmailOptions options,
             CancellationToken cancellationToken)
@@ -330,6 +416,7 @@ public sealed class EmailNotificationTestViewModelTests
             CancellationToken cancellationToken)
         {
             SendCallCount++;
+            SendOptions = options;
             Notification = notification;
             return Task.FromResult(
                 EmailSmtpExecutionResult.WithoutDiagnostics(

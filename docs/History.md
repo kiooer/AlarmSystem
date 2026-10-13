@@ -14,6 +14,48 @@
 
 ---
 
+## 0.0.8 — 寄件功能完成及 SMTP 測試完成
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-13 |
+| 時間 | 13:47:03 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `寄件功能完成及smtp測試完成`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `docs/History.md`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/ViewModels/EmailNotificationTestViewModel.cs`
+- `src/AlarmSystem.Infrastructure/Notifications/Email/EmailSmtpDiagnostics.cs`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/EmailNotificationTestViewModelTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Notifications/Email/EmailOptionsTests.cs`
+
+### 開發內容與功能
+
+- 將 Desktop 的 SMTP 連線測試與實際 Email 寄送測試統一由同一個設定映射建立 `EmailOptions`；兩條路徑共用 Host、Port、安全模式、未加密 Relay 控制、驗證模式、帳號、密碼與 timeout，寄送路徑再加入寄件者、收件人及收件群組代碼。
+- 保留連線與寄送的不同驗證範圍：連線測試不要求寄件資料；寄送設定驗證失敗改顯示寄件者、收件人與群組代碼提示，不再讓加密 SMTP 因通用訊息而誤顯示「未加密 Relay 必須明確確認」。
+- 每次 SMTP 連線或寄送操作均建立新的 Correlation ID 並先清除前次結果；本機設定驗證失敗會回報 `PermanentFailure`、`email_configuration_invalid`、`Validation` 階段及受控的設定錯誤診斷，不再沿用前次成功狀態、錯誤碼或 Correlation ID。
+- 保留 Desktop 人工測試不檢查 Dongle License 的既有邊界；正式 Worker Email 通道仍由 `LicensedNotificationChannel(NotificationFeature.Email)` 保護。IPv4 only、TLS 憑證驗證與成功寄送後 QUIT 警告不覆蓋成功結果的行為未變更。
+
+### 測試與驗證
+
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：237 passed、0 failed、0 skipped（Application 18、Integration 168、Desktop 51）；Domain 測試專案目前沒有測試案例。
+- `dotnet format AlarmSystem.sln --no-restore --verify-no-changes --verbosity minimal`：通過；沙箱內因 named pipe 權限失敗，允許必要權限後完成驗證。
+- `git diff --check`、Desktop `Strings.resx` XML 解析：通過；僅顯示 `EmailSmtpDiagnostics.cs` 的 LF／CRLF 工作目錄轉換提示。
+- 使用者已於 Desktop UI 完成人工驗收：SMTP 連線測試成功，Port 587 與 Port 465 均成功寄送，收件信箱已收到郵件且顯示正常。驗收紀錄不包含 SMTP 密碼、App Password、完整地址或郵件本文。
+
+### 設定、相容性與尚待確認
+
+- Port 465 維持 `SslOnConnect`，Port 587 維持 `StartTls`；未取消未加密 Relay 的明確確認規則，亦未停用 TLS、憑證名稱或信任鏈驗證。
+- 沒有新增或變更 SMTP 設定鍵、正式授權失敗碼、LINE／Teams transport、共用通知契約、資料庫 schema 或 migration；未新增秘密保存機制，也未提交 SMTP 密碼、App Password、Dongle 金鑰或其他秘密。
+- Desktop 實機驗收證實目前互動式測試環境可連線、驗證與寄送；正式 Worker 自動發報仍待實際 Dongle Provider、正式部署身分、SMTP 正式設定及未來 Dispatcher／outbox 流程完成後另行驗收。
+- 未追蹤的架構圖不納入本次提交。
+
+---
+
 ## 0.0.7 — 修正 Email SMTP 測試介面－待測試（後續提交）
 
 | 項目 | 內容 |

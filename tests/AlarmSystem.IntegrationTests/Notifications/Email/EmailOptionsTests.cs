@@ -37,6 +37,18 @@ public sealed class EmailOptionsTests
         options.ValidateSmtpConnection();
     }
 
+    [Theory]
+    [InlineData(465, EmailSecurityMode.SslTls)]
+    [InlineData(587, EmailSecurityMode.StartTls)]
+    public void Validate_AcceptsPasswordAuthenticationOverEncryptedSmtp(
+        int port,
+        EmailSecurityMode securityMode)
+    {
+        var options = CreateEnabledOptions(port: port, securityMode: securityMode);
+
+        options.Validate();
+    }
+
     [Fact]
     public void Validate_AcceptsExplicitUnauthenticatedInternalRelay()
     {

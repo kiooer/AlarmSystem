@@ -111,6 +111,7 @@
   <data name="EmailDiagnosticLabel" xml:space="preserve"><value>安全診斷資訊</value></data>
   <data name="EmailWarningCodeLabel" xml:space="preserve"><value>非致命警告碼</value></data>
   <data name="EmailCorrelationIdLabel" xml:space="preserve"><value>Correlation ID</value></data>
+  <data name="EmailSmtpStageValidation" xml:space="preserve"><value>設定驗證</value></data>
   <data name="EmailSmtpStageConnect" xml:space="preserve"><value>Connect（包含 SMTP Greeting 與設定的 TLS 協商）</value></data>
   <data name="EmailSmtpStageStartTls" xml:space="preserve"><value>STARTTLS／TLS 握手</value></data>
   <data name="EmailSmtpStageAuthenticate" xml:space="preserve"><value>Authenticate</value></data>
@@ -126,6 +127,7 @@
   <data name="EmailDiagnosticCancelled" xml:space="preserve"><value>使用者取消操作</value></data>
   <data name="EmailDiagnosticCleanup" xml:space="preserve"><value>SMTP client 清理失敗</value></data>
   <data name="EmailDiagnosticUnexpected" xml:space="preserve"><value>未預期的 SMTP 錯誤</value></data>
+  <data name="EmailDiagnosticConfiguration" xml:space="preserve"><value>設定驗證失敗</value></data>
   <data name="EmailDiagnosticDetailsFormat" xml:space="preserve"><value>分類：{0}；例外類型：{1}；最深層例外：{2}；驗證例外：{3}；Socket：{4}；Native：{5}；耗時：{6} ms；安全模式：{7}／{8}；IPv4：{9}；逾時觸發：{10}；呼叫端取消：{11}</value></data>
   <data name="EmailDiagnosticYes" xml:space="preserve"><value>是</value></data>
   <data name="EmailDiagnosticNo" xml:space="preserve"><value>否</value></data>
@@ -152,6 +154,7 @@
   <data name="EmailValidationPasswordRequired" xml:space="preserve"><value>密碼驗證模式需要輸入 SMTP 密碼。</value></data>
   <data name="EmailValidationConnectionSettings" xml:space="preserve"><value>SMTP 連線設定無效。請檢查 Host、安全模式與驗證帳密；未加密 Relay 必須明確確認。</value></data>
   <data name="EmailValidationSettings" xml:space="preserve"><value>SMTP 設定無效。請檢查 Host、安全模式、驗證、寄件者、收件人與群組代碼；未加密 Relay 必須明確確認。</value></data>
+  <data name="EmailValidationMessageSettings" xml:space="preserve"><value>Email 寄送設定無效。請檢查寄件者、收件人與收件群組代碼；SMTP 連線設定會沿用目前畫面的 Host、Port、安全模式與驗證方式。</value></data>
   <data name="EmailValidationAlarmData" xml:space="preserve"><value>測試警報資料無效；EventId、Tag、內容與含 offset 的時間都必須有效。</value></data>
   <data name="EmailSendConfirmationTitle" xml:space="preserve"><value>確認真實 Email 寄送</value></data>
   <data name="EmailSendConfirmationMessageFormat" xml:space="preserve"><value>這會透過 SMTP 實際寄出測試郵件。&#xA;&#xA;收件群組代碼：{0}&#xA;寄件者：{1}&#xA;收件人數：{2}&#xA;EventId：{3}&#xA;Tag：{4}&#xA;&#xA;是否繼續？</value></data>

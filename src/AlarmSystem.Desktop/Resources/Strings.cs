@@ -108,6 +108,7 @@ public static class Strings
     public static string EmailDiagnosticLabel => GetString(nameof(EmailDiagnosticLabel));
     public static string EmailWarningCodeLabel => GetString(nameof(EmailWarningCodeLabel));
     public static string EmailCorrelationIdLabel => GetString(nameof(EmailCorrelationIdLabel));
+    public static string EmailSmtpStageValidation => GetString(nameof(EmailSmtpStageValidation));
     public static string EmailSmtpStageConnect => GetString(nameof(EmailSmtpStageConnect));
     public static string EmailSmtpStageStartTls => GetString(nameof(EmailSmtpStageStartTls));
     public static string EmailSmtpStageAuthenticate => GetString(nameof(EmailSmtpStageAuthenticate));
@@ -123,6 +124,7 @@ public static class Strings
     public static string EmailDiagnosticCancelled => GetString(nameof(EmailDiagnosticCancelled));
     public static string EmailDiagnosticCleanup => GetString(nameof(EmailDiagnosticCleanup));
     public static string EmailDiagnosticUnexpected => GetString(nameof(EmailDiagnosticUnexpected));
+    public static string EmailDiagnosticConfiguration => GetString(nameof(EmailDiagnosticConfiguration));
     public static string EmailDiagnosticDetailsFormat => GetString(nameof(EmailDiagnosticDetailsFormat));
 
     public static string EmailDiagnosticYes => GetString(nameof(EmailDiagnosticYes));
@@ -151,6 +153,7 @@ public static class Strings
     public static string EmailValidationPasswordRequired => GetString(nameof(EmailValidationPasswordRequired));
     public static string EmailValidationConnectionSettings => GetString(nameof(EmailValidationConnectionSettings));
     public static string EmailValidationSettings => GetString(nameof(EmailValidationSettings));
+    public static string EmailValidationMessageSettings => GetString(nameof(EmailValidationMessageSettings));
     public static string EmailValidationAlarmData => GetString(nameof(EmailValidationAlarmData));
     public static string EmailSendConfirmationTitle => GetString(nameof(EmailSendConfirmationTitle));
     public static string EmailSendConfirmationMessageFormat => GetString(nameof(EmailSendConfirmationMessageFormat));

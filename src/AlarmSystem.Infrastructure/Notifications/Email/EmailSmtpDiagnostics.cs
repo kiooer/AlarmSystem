@@ -5,6 +5,7 @@ namespace AlarmSystem.Infrastructure.Notifications.Email;
 
 public enum EmailSmtpStage
 {
+    Validation = 0,
     Connect = 1,
     StartTls = 2,
     Authenticate = 3,
@@ -32,6 +33,7 @@ public enum EmailSmtpFailureKind
     Cancelled = 7,
     Cleanup = 8,
     Unexpected = 9,
+    Configuration = 10,
 }
 
 public sealed record EmailSmtpStageDiagnostic(
