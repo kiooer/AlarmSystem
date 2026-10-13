@@ -77,6 +77,41 @@
   <data name="ValidationPreview" xml:space="preserve"><value>無法產生 LINE 訊息預覽，請檢查輸入欄位。</value></data>
   <data name="SendConfirmationTitle" xml:space="preserve"><value>確認真實 LINE 發送</value></data>
   <data name="SendConfirmationMessageFormat" xml:space="preserve"><value>這會將測試訊息實際傳送至外部 LINE 群組。&#xA;&#xA;目的地：{0}&#xA;EventId：{1}&#xA;警報等級：{2}&#xA;Tag：{3}&#xA;&#xA;是否繼續？</value></data>
+  <data name="TeamsTabHeader" xml:space="preserve"><value>Teams 手動測試</value></data>
+  <data name="TeamsToolNotice" xml:space="preserve"><value>此頁僅供人工測試。測試發送不檢查 Dongle License；測試成功不代表正式自動發報已取得授權。</value></data>
+  <data name="TeamsConnectionSection" xml:space="preserve"><value>Teams Webhook 設定</value></data>
+  <data name="TeamsWebhookUrlLabel" xml:space="preserve"><value>Teams Webhook URL</value></data>
+  <data name="TeamsWebhookSecurityHint" xml:space="preserve"><value>Webhook URL 視同秘密，只在本次操作短暫使用；不會保存、記錄或顯示於結果。</value></data>
+  <data name="TeamsDestinationReferenceLabel" xml:space="preserve"><value>目的地識別碼</value></data>
+  <data name="TeamsDestinationReferenceHint" xml:space="preserve"><value>此為非敏感識別碼，只供結果追蹤；不能用來選擇或變更 Teams Channel。</value></data>
+  <data name="TeamsAlarmOnlyNotice" xml:space="preserve"><value>Teams 手動測試固定傳送 ALARM；不提供 ACK 手動通知選項。</value></data>
+  <data name="TeamsPreviewSection" xml:space="preserve"><value>Teams Adaptive Card JSON 預覽</value></data>
+  <data name="TeamsReloadTemplateButton" xml:space="preserve"><value>重新載入 JSON 樣板</value></data>
+  <data name="TeamsSendSection" xml:space="preserve"><value>Teams 發送控制</value></data>
+  <data name="TeamsRealSendConfirmationCheckbox" xml:space="preserve"><value>我確認將測試警報發送至真實 Teams 頻道</value></data>
+  <data name="TeamsSendTestButton" xml:space="preserve"><value>發送測試警報</value></data>
+  <data name="TeamsResultSection" xml:space="preserve"><value>Teams 最近一次測試結果</value></data>
+  <data name="TeamsDefaultDestinationReference" xml:space="preserve"><value>TeamsManualTest</value></data>
+  <data name="TeamsDefaultMessage" xml:space="preserve"><value>[測試] Teams 設備警報通知</value></data>
+  <data name="TeamsStatusReady" xml:space="preserve"><value>請輸入 Teams Webhook URL，確認預覽後再進行手動測試。</value></data>
+  <data name="TeamsStatusSending" xml:space="preserve"><value>正在發送 Teams 測試警報。</value></data>
+  <data name="TeamsStatusSucceededFormat" xml:space="preserve"><value>Teams Webhook transport 已接受請求。EventId：{0}；目的地：{1}；外部訊息 ID：{2}；耗時：{3}。卡片是否在所有 Teams 客戶端正常顯示仍須人工確認。</value></data>
+  <data name="TeamsStatusRetryableFormat" xml:space="preserve"><value>Teams 暫時性失敗。錯誤碼：{0}；HTTP：{1}；耗時：{2}。</value></data>
+  <data name="TeamsStatusPermanentFormat" xml:space="preserve"><value>Teams 永久失敗或設定錯誤。錯誤碼：{0}；HTTP：{1}；耗時：{2}。</value></data>
+  <data name="TeamsStatusCancelledUncertain" xml:space="preserve"><value>已取消本機發送操作。發送結果未確認，訊息可能已送達；請先至 Teams 人工確認，避免重複發送。</value></data>
+  <data name="TeamsStatusConfirmationCancelled" xml:space="preserve"><value>已取消實際發送，未建立 Teams HTTP request。</value></data>
+  <data name="TeamsStatusUnexpectedFailure" xml:space="preserve"><value>Teams 手動測試失敗；未顯示原始例外或 Webhook URL，請查看受控診斷紀錄。</value></data>
+  <data name="TeamsStatusTemplateReloaded" xml:space="preserve"><value>Teams JSON 樣板已重新載入，預覽已更新。</value></data>
+  <data name="TeamsValidationEndpointRequired" xml:space="preserve"><value>請輸入 Teams Webhook URL。</value></data>
+  <data name="TeamsValidationEndpoint" xml:space="preserve"><value>Teams Webhook URL 必須是有效的絕對 HTTPS URI。</value></data>
+  <data name="TeamsValidationDestinationReference" xml:space="preserve"><value>目的地識別碼不得為空白。</value></data>
+  <data name="TeamsValidationSettings" xml:space="preserve"><value>Teams Webhook 設定無效，請檢查 HTTPS URL、目的地識別碼與 Timeout。</value></data>
+  <data name="TeamsValidationConfirmationRequired" xml:space="preserve"><value>請先勾選真實 Teams 頻道發送確認。</value></data>
+  <data name="TeamsValidationAlarmData" xml:space="preserve"><value>請先修正 Teams 測試警報資料並更新預覽。</value></data>
+  <data name="TeamsValidationTemplateUnhealthy" xml:space="preserve"><value>Teams Adaptive Card 樣板缺失或無效，未建立 HTTP request。</value></data>
+  <data name="TeamsValidationPreview" xml:space="preserve"><value>無法產生 Teams Adaptive Card 預覽，請檢查測試資料。</value></data>
+  <data name="TeamsSendConfirmationTitle" xml:space="preserve"><value>確認真實 Teams 發送</value></data>
+  <data name="TeamsSendConfirmationMessageFormat" xml:space="preserve"><value>這會將測試警報實際傳送至外部 Teams 頻道。&#xA;&#xA;遮罩目的地：{0}&#xA;目的地識別碼：{1}&#xA;EventId：{2}&#xA;警報等級：{3}&#xA;Tag：{4}&#xA;&#xA;是否繼續？</value></data>
   <data name="LineTabHeader" xml:space="preserve"><value>LINE 手動測試</value></data>
   <data name="EmailTabHeader" xml:space="preserve"><value>Email SMTP 測試</value></data>
   <data name="EmailToolNotice" xml:space="preserve"><value>此頁為互動式手動測試／功能展示，直接使用正式 SMTP adapter，刻意不檢查 Dongle License；測試成功不代表正式自動發報已取得授權。連線測試不寄信，實際寄送仍需雙重人工確認。密碼僅在本次操作使用，不會保存。</value></data>

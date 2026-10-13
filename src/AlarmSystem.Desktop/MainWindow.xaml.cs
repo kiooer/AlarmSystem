@@ -5,22 +5,31 @@ namespace AlarmSystem.Desktop;
 
 public partial class MainWindow : Window
 {
+    private readonly TeamsNotificationTestViewModel teamsViewModel;
     private readonly LineNotificationTestViewModel lineViewModel;
     private readonly EmailNotificationTestViewModel emailViewModel;
 
     public MainWindow(
+        TeamsNotificationTestViewModel teamsViewModel,
         LineNotificationTestViewModel lineViewModel,
         EmailNotificationTestViewModel emailViewModel)
     {
         InitializeComponent();
+        this.teamsViewModel = teamsViewModel;
         this.lineViewModel = lineViewModel;
         this.emailViewModel = emailViewModel;
         DataContext = lineViewModel;
+        TeamsTab.DataContext = teamsViewModel;
         EmailTab.DataContext = emailViewModel;
     }
 
     protected override void OnClosed(EventArgs e)
     {
+        if (teamsViewModel.CancelCommand.CanExecute(null))
+        {
+            teamsViewModel.CancelCommand.Execute(null);
+        }
+
         if (lineViewModel.CancelCommand.CanExecute(null))
         {
             lineViewModel.CancelCommand.Execute(null);
@@ -31,10 +40,33 @@ public partial class MainWindow : Window
             emailViewModel.CancelCommand.Execute(null);
         }
 
+        TeamsWebhookUrlPasswordBox.Clear();
+        teamsViewModel.SetWebhookUrlPresent(false);
         ChannelAccessTokenPasswordBox.Clear();
         lineViewModel.SetChannelAccessTokenPresent(false);
         EmailPasswordBox.Clear();
         base.OnClosed(e);
+    }
+
+    private void TeamsWebhookUrlPasswordBox_OnPasswordChanged(
+        object sender,
+        RoutedEventArgs e)
+    {
+        using var securePassword = TeamsWebhookUrlPasswordBox.SecurePassword;
+        teamsViewModel.SetWebhookUrlPresent(securePassword.Length > 0);
+    }
+
+    private async void SendTeamsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var webhookUrl = TeamsWebhookUrlPasswordBox.Password;
+        try
+        {
+            await teamsViewModel.SendAsync(webhookUrl);
+        }
+        finally
+        {
+            webhookUrl = string.Empty;
+        }
     }
 
     private void ChannelAccessTokenPasswordBox_OnPasswordChanged(

@@ -14,6 +14,55 @@
 
 ---
 
+## 0.0.10 — Teams 手動發報測試 UI
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-13 |
+| 時間 | 17:04:28 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `加入 Teams 手動發報測試 UI`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/History.md`
+- `src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj`、`App.xaml.cs`
+- `src/AlarmSystem.Desktop/MainWindow.xaml`、`MainWindow.xaml.cs`
+- `src/AlarmSystem.Desktop/Resources/Strings.cs`、`Strings.resx`
+- `src/AlarmSystem.Desktop/Services/ITeamsNotificationTestService.cs`、`TeamsNotificationTestService.cs`
+- `src/AlarmSystem.Desktop/Services/ITeamsSendConfirmationService.cs`、`TeamsSendConfirmationService.cs`
+- `src/AlarmSystem.Desktop/ViewModels/TeamsNotificationTestViewModel.cs`
+- `tests/AlarmSystem.Desktop.Tests/AlarmSystem.Desktop.Tests.csproj`
+- `tests/AlarmSystem.Desktop.Tests/Services/TeamsNotificationTestServiceTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/TeamsNotificationTestViewModelTests.cs`
+
+### 開發內容與功能
+
+- 在 LINE 與 Email 分頁之前新增獨立 DataContext 的 Teams 手動測試分頁，提供遮罩 Webhook URL、非敏感目的地識別碼、1–120 秒 timeout、固定 `ALARM` 的測試資料、HIGH／MEDIUM／LOW、縮排 Adaptive Card JSON 預覽、樣板重新載入、雙重人工確認、取消與分類後結果顯示。
+- Webhook URL 只存在於 `PasswordBox` 與單次操作區域，不建立可繫結的 ViewModel 字串屬性，不保存或記錄完整 URL；確認視窗與成功結果只顯示 `scheme + host + /***` 的遮罩目的地，關閉視窗時清除欄位及 URL 存在狀態。
+- 預覽直接呼叫既有 `TeamsCardTemplateProvider.TryRender()`，重新載入直接呼叫 `Reload()`；實際送出由 Desktop test service 建立既有 `TeamsWebhookNotificationChannel`，保留正式 Adaptive Card envelope 與 HTTP 200／400／408／429／5xx、timeout、傳輸故障及取消契約，未另寫 Teams renderer 或 HTTP POST。
+- 發送前建立設定與警報快照；發送中停用可編輯區域並阻止重複操作。取消開始後的送出會明示「結果未確認、訊息可能已送達」，避免把本機取消誤認為外部未接受並重複發送。
+- Desktop 測試 service 刻意直接使用未包裝的 Teams transport，不檢查 Dongle License；Worker 正式 Teams 通道、`NotificationFeature.Teams`、fail-closed authorizer 與 LINE／Email 授權邊界均未修改。
+- Desktop build／publish 新增 `templates/teams-alarm-card.json`，並補充 DI、Named HttpClient、本地化資源及 README 操作／安全說明。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln`：成功。
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：297 passed、0 failed、0 skipped（Application 18、Integration 176、Desktop 103）；Domain 測試專案目前沒有測試案例。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：通過；沙箱內因 Roslyn named pipe 權限失敗，允許必要權限後完成驗證。
+- Desktop publish smoke check：成功，輸出包含 Teams、LINE 與 Email 三份樣板；驗證用暫存輸出已安全移除。
+- WPF 啟動 smoke test：程序成功啟動且保持回應，未出現 DI／XAML 載入例外，隨後已停止；未填入 Webhook、未呼叫真實 Teams endpoint。
+- Teams 自動測試全部使用本機 `HttpMessageHandler` stub，並驗證正式 renderer、既有 channel envelope／分類、輸入驗證、雙重確認、重複點擊、取消、樣板失效／重載、Webhook 遮罩與 Desktop 授權例外；LINE／Email 與既有 License 回歸測試全數通過。
+
+### 設定、相容性與尚待確認
+
+- 沒有新增 Worker 設定鍵、正式 endpoint、全域 license bypass、資料庫 schema 或 migration；沒有修改 Teams 正式 transport、Adaptive Card 樣式、LINE、Email SMTP、共用警報／結果契約、Dispatcher、outbox 或 ACK 規則。
+- 沒有提交真實 Webhook URL、token、SMTP 密碼、Dongle 金鑰、HTTP payload／response body 或其他秘密；未追蹤的架構圖不納入本次提交。
+- HTTP 2xx 只證實 Teams Webhook transport 接受請求，不代表所有 Teams 客戶端已顯示卡片。仍須由操作者使用受控測試 Webhook 完成第二階段確認、實際頻道顯示及關閉視窗清除秘密的人工驗收。
+
+---
+
 ## 0.0.9 — SMTP Port 自動連動 TLS 與進階 Relay 設定
 
 | 項目 | 內容 |

@@ -19,6 +19,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="..\..\templates\teams-alarm-card.json"
+             Link="templates\teams-alarm-card.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\templates\line-alarm-card.json"
              Link="templates\line-alarm-card.json"
              CopyToOutputDirectory="PreserveNewest"

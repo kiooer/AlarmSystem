@@ -2,7 +2,7 @@
 
 圖控警報系統的 C#/.NET solution 骨架。
 
-目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter，以及 LINE／Email 人工測試 UI；尚未實作 iFIX/ODBC、SQL Server、警報輪詢、去重、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
+目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter，以及 Teams／LINE／Email 人工測試 UI；尚未實作 iFIX/ODBC、SQL Server、警報輪詢、去重、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
 
 ## 專案
 
@@ -13,7 +13,7 @@
 - `AlarmSystem.Desktop`：WPF 管理介面入口。
 - `AlarmSystem.Domain.Tests`：領域單元測試。
 - `AlarmSystem.Application.Tests`：應用層單元測試。
-- `AlarmSystem.Desktop.Tests`：WPF LINE／Email 測試工具的 ViewModel 與 service 測試。
+- `AlarmSystem.Desktop.Tests`：WPF Teams／LINE／Email 測試工具的 ViewModel 與 service 測試。
 - `AlarmSystem.IntegrationTests`：基礎設施與跨模組整合測試。
 
 ## 目前狀態
@@ -165,6 +165,39 @@ Disconnect 階段，結構化診斷只包含 correlation ID、受控分類、外
 SMTP 沒有 LINE retry key 等伺服器端冪等保證；未來 Dispatcher／delivery ledger 必須保留此狀態，不得把它當成一般
 可重試傳輸錯誤直接重送。
 
+## Teams 發報測試 UI
+
+以 Desktop 命令啟動後，第一個分頁為「Teams 手動測試」：
+
+```text
+dotnet run --project src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj
+```
+
+操作者可輸入 Teams Webhook URL、非敏感的目的地識別碼與 1–120 秒 timeout，並編輯固定為 `ALARM` 的測試警報資料。
+Webhook URL 使用 `PasswordBox` 遮罩，不建立可繫結的 ViewModel 字串屬性；完整 URL 只在按下發送時短暫傳給 Desktop test service，
+不會保存到設定、recent values、log、確認視窗或結果畫面，關閉視窗時也會清除。目的地識別碼只供追蹤，不能用來選擇或變更
+Teams Channel。
+
+預覽直接使用正式 `TeamsCardTemplateProvider.TryRender()` 與 `templates/teams-alarm-card.json`，顯示縮排後的 Adaptive Card JSON；
+「重新載入 JSON 樣板」會呼叫既有 provider 的 `Reload()`。樣板或警報資料無效時不會建立 HTTP request。實際發送前必須先勾選
+真實發送確認，再於第二個對話框核對遮罩後的 Webhook 目的地、目的地識別碼、EventId、severity 與 Tag。取消任一階段都不會發送。
+
+Desktop Teams test service 直接建立未經 license decorator 包裝的 `TeamsWebhookNotificationChannel`，因此互動式手動測試不檢查
+Dongle License；此例外不能由 Worker、背景服務、排程、API 或未來 outbox 使用。Worker 的正式 Teams 通道仍由
+`LicensedNotificationChannel(NotificationFeature.Teams)` 保護，目前未配置實際 Dongle provider 時會維持 fail closed。
+
+發送中可取消本機操作，但 HTTP request 可能已被外部端點接受；UI 會將結果標示為未確認並提醒先至 Teams 人工檢查，避免重複發送。
+HTTP 2xx 只表示 Teams Webhook transport 接受請求，不代表 Adaptive Card 已在所有 Teams 客戶端正常顯示，仍須由操作者在目標頻道
+人工確認。自動化測試全部使用本機 `HttpMessageHandler` stub，不會呼叫真實 Webhook。
+
+不連線 Teams 的人工 smoke test：
+
+1. 啟動 Desktop，確認 Teams／LINE／Email 三個分頁可見，Teams 分頁位於最前。
+2. 確認 Teams 預設 ALARM 測試資料與 Adaptive Card JSON 預覽正常顯示。
+3. 不輸入 Webhook URL 或不勾選真實發送確認，確認不會送出 HTTP request。
+4. 確認 Webhook URL 欄位遮罩；取消第二次確認後沒有送出，確認視窗不顯示完整 URL。
+5. 關閉並重開視窗，確認 Webhook URL 不會保留。
+
 ## LINE 發報測試 UI
 
 Desktop 提供人工測試與診斷畫面，使用正式的 `LineFlexMessageRenderer` 與
@@ -177,7 +210,7 @@ dotnet run --project src/AlarmSystem.Desktop/AlarmSystem.Desktop.csproj
 啟動後可輸入既有 LINE 群組的 `GroupId`、channel access token、timeout 與測試警報內容，預覽將送出的 Flex Bubble JSON。
 按下發送前必須先勾選真實外部發送確認，接著在第二次確認對話框核對遮罩後的目的地與事件資料；取消任一階段都不會呼叫 LINE。發送中可按「取消」。
 
-LINE 與 Email 分頁都是刻意隔離的手動測試／功能展示路徑，直接建立各自未包裝的 transport，不檢查 Dongle
+Teams、LINE 與 Email 分頁都是刻意隔離的手動測試／功能展示路徑，直接建立各自未包裝的 transport，不檢查 Dongle
 License；測試成功不代表正式發報已取得授權。未來 Desktop 互動式測試頁亦採相同邊界。此例外沒有 `DemoMode`
 或 Worker 設定開關，也不可供 Worker、背景服務、排程、API 或未來 outbox 使用；Worker 的正式通道仍一律透過
 `LicensedNotificationChannel`。

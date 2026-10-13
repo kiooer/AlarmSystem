@@ -45,6 +45,256 @@
     </Window.Resources>
 
     <TabControl>
+      <TabItem x:Name="TeamsTab"
+               Header="{x:Static resources:Strings.TeamsTabHeader}">
+       <ScrollViewer VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20">
+            <TextBlock Text="{x:Static resources:Strings.TeamsToolNotice}"
+                       Margin="0,0,0,14"
+                       Padding="12"
+                       TextWrapping="Wrap"
+                       FontWeight="Bold"
+                       Foreground="#7A271A"
+                       Background="#FEE4E2" />
+
+            <GroupBox Header="{x:Static resources:Strings.TeamsConnectionSection}"
+                      IsEnabled="{Binding IsNotSending}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Label Grid.Row="0" Grid.Column="0"
+                           Target="{Binding ElementName=TeamsWebhookUrlPasswordBox}"
+                           Content="{x:Static resources:Strings.TeamsWebhookUrlLabel}" />
+                    <PasswordBox x:Name="TeamsWebhookUrlPasswordBox"
+                                 Grid.Row="0" Grid.Column="1"
+                                 Margin="4"
+                                 Padding="7,5"
+                                 AutomationProperties.Name="{x:Static resources:Strings.TeamsWebhookUrlLabel}"
+                                 PasswordChanged="TeamsWebhookUrlPasswordBox_OnPasswordChanged" />
+                    <TextBlock Grid.Row="1" Grid.Column="1"
+                               Margin="5,0,5,8"
+                               TextWrapping="Wrap"
+                               Foreground="#475467"
+                               Text="{x:Static resources:Strings.TeamsWebhookSecurityHint}" />
+
+                    <Label Grid.Row="2" Grid.Column="0"
+                           Target="{Binding ElementName=TeamsDestinationReferenceTextBox}"
+                           Content="{x:Static resources:Strings.TeamsDestinationReferenceLabel}" />
+                    <TextBox x:Name="TeamsDestinationReferenceTextBox"
+                             Grid.Row="2" Grid.Column="1"
+                             Text="{Binding DestinationReference, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Row="3" Grid.Column="1"
+                               Margin="5,0,5,8"
+                               TextWrapping="Wrap"
+                               Foreground="#475467"
+                               Text="{x:Static resources:Strings.TeamsDestinationReferenceHint}" />
+
+                    <Label Grid.Row="4" Grid.Column="0"
+                           Target="{Binding ElementName=TeamsTimeoutTextBox}"
+                           Content="{x:Static resources:Strings.TimeoutSecondsLabel}" />
+                    <TextBox x:Name="TeamsTimeoutTextBox"
+                             Grid.Row="4" Grid.Column="1"
+                             MaxWidth="160"
+                             HorizontalAlignment="Left"
+                             Text="{Binding TimeoutSecondsText, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="{x:Static resources:Strings.AlarmSection}"
+                      IsEnabled="{Binding IsNotSending}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4"
+                               Margin="5,0,5,8"
+                               TextWrapping="Wrap"
+                               Foreground="#475467"
+                               Text="{x:Static resources:Strings.TeamsAlarmOnlyNotice}" />
+
+                    <Label Grid.Row="1" Grid.Column="0"
+                           Target="{Binding ElementName=TeamsEventIdTextBox}"
+                           Content="{x:Static resources:Strings.EventIdLabel}" />
+                    <TextBox x:Name="TeamsEventIdTextBox"
+                             Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3"
+                             Text="{Binding EventIdText, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Label Grid.Row="2" Grid.Column="0"
+                           Target="{Binding ElementName=TeamsTagTextBox}"
+                           Content="{x:Static resources:Strings.TagLabel}" />
+                    <TextBox x:Name="TeamsTagTextBox"
+                             Grid.Row="2" Grid.Column="1"
+                             Text="{Binding Tag, UpdateSourceTrigger=PropertyChanged}" />
+                    <Label Grid.Row="2" Grid.Column="2"
+                           Target="{Binding ElementName=TeamsAreaTextBox}"
+                           Content="{x:Static resources:Strings.AreaLabel}" />
+                    <TextBox x:Name="TeamsAreaTextBox"
+                             Grid.Row="2" Grid.Column="3"
+                             Text="{Binding Area, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Label Grid.Row="3" Grid.Column="0"
+                           Target="{Binding ElementName=TeamsEquipmentTextBox}"
+                           Content="{x:Static resources:Strings.EquipmentLabel}" />
+                    <TextBox x:Name="TeamsEquipmentTextBox"
+                             Grid.Row="3" Grid.Column="1"
+                             Text="{Binding Equipment, UpdateSourceTrigger=PropertyChanged}" />
+                    <Label Grid.Row="3" Grid.Column="2"
+                           Target="{Binding ElementName=TeamsSourceTimestampTextBox}"
+                           Content="{x:Static resources:Strings.SourceTimestampLabel}" />
+                    <TextBox x:Name="TeamsSourceTimestampTextBox"
+                             Grid.Row="3" Grid.Column="3"
+                             Text="{Binding SourceTimestampText, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Label Grid.Row="4" Grid.Column="0"
+                           Content="{x:Static resources:Strings.EventTypeLabel}" />
+                    <TextBox Grid.Row="4" Grid.Column="1"
+                             IsReadOnly="True"
+                             IsTabStop="False"
+                             Text="{x:Static resources:Strings.EventTypeAlarm}" />
+                    <Label Grid.Row="4" Grid.Column="2"
+                           Target="{Binding ElementName=TeamsSeverityComboBox}"
+                           Content="{x:Static resources:Strings.SeverityLabel}" />
+                    <ComboBox x:Name="TeamsSeverityComboBox"
+                              Grid.Row="4" Grid.Column="3"
+                              SelectedValuePath="Tag"
+                              SelectedValue="{Binding SelectedSeverity, Mode=TwoWay}">
+                        <ComboBoxItem Tag="{x:Static domain:AlarmSeverity.High}"
+                                      Content="{x:Static resources:Strings.SeverityHigh}" />
+                        <ComboBoxItem Tag="{x:Static domain:AlarmSeverity.Medium}"
+                                      Content="{x:Static resources:Strings.SeverityMedium}" />
+                        <ComboBoxItem Tag="{x:Static domain:AlarmSeverity.Low}"
+                                      Content="{x:Static resources:Strings.SeverityLow}" />
+                    </ComboBox>
+
+                    <Label Grid.Row="5" Grid.Column="0"
+                           VerticalAlignment="Top"
+                           Target="{Binding ElementName=TeamsMessageTextBox}"
+                           Content="{x:Static resources:Strings.MessageLabel}" />
+                    <TextBox x:Name="TeamsMessageTextBox"
+                             Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3"
+                             MinHeight="90"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             TextWrapping="Wrap"
+                             VerticalContentAlignment="Top"
+                             Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="{x:Static resources:Strings.TeamsPreviewSection}">
+                <StackPanel>
+                    <TextBox MinHeight="230"
+                             MaxHeight="420"
+                             IsReadOnly="True"
+                             IsTabStop="False"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             VerticalContentAlignment="Top"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             Text="{Binding PreviewText, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{x:Static resources:Strings.NewTestDataButton}"
+                                Command="{Binding NewTestDataCommand}" />
+                        <Button Content="{x:Static resources:Strings.UpdatePreviewButton}"
+                                Command="{Binding UpdatePreviewCommand}" />
+                        <Button Content="{x:Static resources:Strings.TeamsReloadTemplateButton}"
+                                Command="{Binding ReloadTemplateCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="{x:Static resources:Strings.TeamsSendSection}">
+                <StackPanel>
+                    <CheckBox Margin="4,2,4,10"
+                              IsEnabled="{Binding IsNotSending}"
+                              IsChecked="{Binding IsRealSendConfirmed, Mode=TwoWay}"
+                              Content="{x:Static resources:Strings.TeamsRealSendConfirmationCheckbox}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="{x:Static resources:Strings.CancelButton}"
+                                Command="{Binding CancelCommand}" />
+                        <Button Style="{StaticResource WarningButtonStyle}"
+                                Content="{x:Static resources:Strings.TeamsSendTestButton}"
+                                IsEnabled="{Binding CanSend}"
+                                IsDefault="False"
+                                Click="SendTeamsButton_OnClick" />
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="{x:Static resources:Strings.TeamsResultSection}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Label Grid.Row="0" Grid.Column="0"
+                           Content="{x:Static resources:Strings.StatusMessageLabel}" />
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               Margin="5"
+                               TextWrapping="Wrap"
+                               FontWeight="SemiBold"
+                               Text="{Binding StatusMessage}" />
+                    <Label Grid.Row="1" Grid.Column="0"
+                           Content="{x:Static resources:Strings.SendStatusLabel}" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="5"
+                               Text="{Binding LastSendStatusDisplay}" />
+                    <Label Grid.Row="2" Grid.Column="0"
+                           Content="{x:Static resources:Strings.ErrorCodeLabel}" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="5"
+                               Text="{Binding LastErrorCodeDisplay}" />
+                    <Label Grid.Row="3" Grid.Column="0"
+                           Content="{x:Static resources:Strings.HttpStatusCodeLabel}" />
+                    <TextBlock Grid.Row="3" Grid.Column="1" Margin="5"
+                               Text="{Binding LastHttpStatusCodeDisplay}" />
+                    <Label Grid.Row="4" Grid.Column="0"
+                           Content="{x:Static resources:Strings.ExternalMessageIdLabel}" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Margin="5"
+                               TextWrapping="Wrap"
+                               Text="{Binding LastExternalMessageIdDisplay}" />
+                    <Label Grid.Row="5" Grid.Column="0"
+                           Content="{x:Static resources:Strings.ElapsedTimeLabel}" />
+                    <TextBlock Grid.Row="5" Grid.Column="1" Margin="5"
+                               Text="{Binding ElapsedTimeDisplay}" />
+                </Grid>
+            </GroupBox>
+        </StackPanel>
+       </ScrollViewer>
+      </TabItem>
+
       <TabItem Header="{x:Static resources:Strings.LineTabHeader}">
        <ScrollViewer VerticalScrollBarVisibility="Auto"
                      HorizontalScrollBarVisibility="Disabled">

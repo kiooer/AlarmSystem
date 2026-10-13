@@ -4,6 +4,7 @@ using AlarmSystem.Desktop.Services;
 using AlarmSystem.Desktop.ViewModels;
 using AlarmSystem.Infrastructure.Notifications.Email;
 using AlarmSystem.Infrastructure.Notifications.Line;
+using AlarmSystem.Infrastructure.Notifications.Teams;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AlarmSystem.Desktop;
@@ -19,6 +20,14 @@ public partial class App : System.Windows.Application
         var services = new ServiceCollection();
         services.AddHttpClient(LineNotificationTestService.HttpClientName);
         services.AddSingleton(TimeProvider.System);
+
+        services.AddHttpClient(TeamsNotificationTestService.HttpClientName);
+        services.AddSingleton(_ => new TeamsCardTemplateProvider(
+            Path.Combine(AppContext.BaseDirectory, "templates", "teams-alarm-card.json")));
+        services.AddSingleton<ITeamsNotificationTestService, TeamsNotificationTestService>();
+        services.AddSingleton<ITeamsSendConfirmationService, TeamsSendConfirmationService>();
+        services.AddTransient<TeamsNotificationTestViewModel>();
+
         services.AddSingleton(_ => new LineFlexMessageTemplateProvider(
             Path.Combine(AppContext.BaseDirectory, "templates", "line-alarm-card.json")));
         services.AddSingleton<ILineNotificationTestService, LineNotificationTestService>();
