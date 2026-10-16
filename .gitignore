@@ -23,6 +23,10 @@ appsettings.Local.json
 appsettings.*.local.json
 .env
 
+# Private SQL Server credentials
+/config/sql-connection.local.json
+/config/sql-connection.*.local.json
+
 # OS files
 Thumbs.db
 .DS_Store

@@ -1,0 +1,13 @@
+{
+  "SqlServer": {
+    "Role": "AlarmStore",
+    "Server": "tcp:ALARM_STORE_SQL_HOST,1433",
+    "Database": "YOUR_ALARM_STORE_DATABASE",
+    "Authentication": "SqlPassword",
+    "UserName": "YOUR_ALARM_STORE_SQL_USER",
+    "Password": "YOUR_ALARM_STORE_SQL_PASSWORD",
+    "Encrypt": true,
+    "TrustServerCertificate": false,
+    "ConnectionTimeoutSeconds": 10
+  }
+}

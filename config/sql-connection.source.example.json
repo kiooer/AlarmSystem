@@ -1,0 +1,13 @@
+{
+  "SqlServer": {
+    "Role": "Source",
+    "Server": "tcp:SOURCE_SQL_HOST,1433",
+    "Database": "IFIX-ALARM",
+    "Authentication": "SqlPassword",
+    "UserName": "YOUR_SOURCE_SQL_USER",
+    "Password": "YOUR_SOURCE_SQL_PASSWORD",
+    "Encrypt": true,
+    "TrustServerCertificate": false,
+    "ConnectionTimeoutSeconds": 10
+  }
+}

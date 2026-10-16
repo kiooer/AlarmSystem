@@ -2,25 +2,44 @@
 
 圖控警報系統的 C#/.NET solution 骨架。
 
-目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter，以及 Teams／LINE／Email 人工測試 UI；尚未實作 iFIX/ODBC、SQL Server、警報輪詢、去重、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
+目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter、Teams／LINE／Email 人工測試 UI，以及遠端 SQL Server 的連線診斷、唯讀來源 schema 檢查、`alarm` 基礎 schema migration 與驗證工具。尚未實作 iFIX/ODBC 實際資料擷取、警報輪詢、去重處理流程、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
 
 ## 專案
 
 - `AlarmSystem.Domain`：領域模型與規則。
 - `AlarmSystem.Application`：應用流程與外部介面抽象。
-- `AlarmSystem.Infrastructure`：Teams、LINE、Email SMTP、未來資料庫／iFIX／CSV 與安全 adapter。
+- `AlarmSystem.Infrastructure`：Teams、LINE、Email SMTP、SQL Server database foundation，以及未來 iFIX／CSV 與安全 adapter。
 - `AlarmSystem.Worker`：背景服務入口。
 - `AlarmSystem.Desktop`：WPF 管理介面入口。
 - `AlarmSystem.Domain.Tests`：領域單元測試。
 - `AlarmSystem.Application.Tests`：應用層單元測試。
 - `AlarmSystem.Desktop.Tests`：WPF Teams／LINE／Email 測試工具的 ViewModel 與 service 測試。
 - `AlarmSystem.IntegrationTests`：基礎設施與跨模組整合測試。
+- `AlarmSystem.DatabaseTool`：由開發 PC 執行的遠端 SQL 連線、來源檢查、初始化與 schema 驗證 CLI。
 
 ## 目前狀態
 
 本機只有 .NET 10 SDK，因此骨架暫以 `net10.0` / `net10.0-windows` 建立。目標 .NET 與 Windows 版本仍屬待確認事項；開始功能開發前應先定案。
 
 任何外部服務秘密都不會加入 repository 設定。
+
+## 遠端 SQL Server Database Foundation
+
+階段 1 明確分開兩個 SQL 角色：`Source` 指向 iFIX 來源 `IFIX-ALARM.dbo.FIXALARMS`，只供來源檢查／未來讀取；`AlarmStore` 指向另一個 AlarmSystem database，才可建立與驗證 `alarm.*`。每個角色使用不同的未追蹤私有 JSON 與 SQL 帳號，repository 只保存無秘密範例。
+
+```powershell
+Copy-Item config/sql-connection.source.example.json config/sql-connection.source.local.json
+Copy-Item config/sql-connection.alarmstore.example.json config/sql-connection.alarmstore.local.json
+
+dotnet run --project tools/AlarmSystem.DatabaseTool -- test-connection --config config/sql-connection.source.local.json
+dotnet run --project tools/AlarmSystem.DatabaseTool -- inspect-source --config config/sql-connection.source.local.json
+
+dotnet run --project tools/AlarmSystem.DatabaseTool -- test-connection --config config/sql-connection.alarmstore.local.json
+dotnet run --project tools/AlarmSystem.DatabaseTool -- initialize --config config/sql-connection.alarmstore.local.json --dry-run
+dotnet run --project tools/AlarmSystem.DatabaseTool -- verify-schema --config config/sql-connection.alarmstore.local.json
+```
+
+設定中的 `Role` 是必填防呆：`inspect-source` 拒絕 `AlarmStore`，`initialize`／`verify-schema` 拒絕 `Source`。`initialize` 預設為 dry run，實際 DDL 另需 `--apply --confirm-server <AlarmStore Server> --confirm-database <AlarmStore Database>`；工具不建立 database、不修改 `dbo.FIXALARMS`，Worker 啟動也不會自動初始化。完整說明請見 [`docs/Database.md`](docs/Database.md) 與 [`ADR-0001`](docs/adr/0001-separate-source-and-alarm-store.md)。
 
 ## Dongle License 與正式通知邊界
 

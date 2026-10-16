@@ -14,6 +14,84 @@
 
 ---
 
+## 0.0.11 — 分離式遠端 SQL Server Database Foundation 且測試成功
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-16 |
+| 時間 | 17:32:01 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `分離式遠端 SQL Server Database Foundation 且測試成功`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `.gitignore`、`AGENTS.md`、`AlarmSystem.sln`、`README.md`
+- `config/sql-connection.source.example.json`
+- `config/sql-connection.alarmstore.example.json`
+- `docs/Database.md`、`docs/History.md`
+- `docs/adr/0001-separate-source-and-alarm-store.md`
+- `src/AlarmSystem.Application/Abstractions/Persistence/IDatabaseInitializer.cs`
+- `src/AlarmSystem.Application/Abstractions/Persistence/IDatabaseSchemaValidator.cs`
+- `src/AlarmSystem.Infrastructure/AlarmSystem.Infrastructure.csproj`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/DatabaseTarget.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/InitializationSafety.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlConnectionDiagnostics.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlDatabaseInitializer.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlDatabaseSchemaValidator.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlMigrationCatalog.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlSchemaManifest.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlServerConnectionFactory.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlServerConnectionOptions.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlSourceSchemaInspector.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/Migrations/0001_CreateAlarmFoundation.sql`
+- `tools/AlarmSystem.DatabaseTool/AlarmSystem.DatabaseTool.csproj`
+- `tools/AlarmSystem.DatabaseTool/Program.cs`
+- `tools/AlarmSystem.DatabaseTool/Properties/AssemblyInfo.cs`
+- `tests/AlarmSystem.IntegrationTests/AlarmSystem.IntegrationTests.csproj`
+- `tests/AlarmSystem.IntegrationTests/Persistence/SqlServer/SqlMigrationAndSchemaTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Persistence/SqlServer/SqlServerConnectionOptionsTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Persistence/SqlServer/SqlServerDatabaseIntegrationTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Persistence/SqlServer/SqlServerIntegrationFactAttribute.cs`
+
+### 開發內容與功能
+
+- 新增本機私有 JSON 載入與嚴格驗證、SQL Password 專用 `SqlConnectionStringBuilder`、遠端主機／Named Instance／`tcp:HOST,PORT` 支援，以及不暴露密碼或原始 SQL 例外的連線診斷分類。
+- 依使用者核准決策將 iFIX `Source` 與 `AlarmStore` 設定、帳號及 database 角色分離；`SqlServer.Role` 為必填，來源檢查只接受 `Source`，initializer／schema validator 只接受 `AlarmStore`，不相符時在目標 SQL 操作前拒絕。
+- 新增兩份無秘密範例與 ADR；來源及 AlarmStore 分別使用受 Git 忽略的角色化私有設定，實際連線值不納入版本控制。
+- 新增獨立 DatabaseTool 的 `test-connection`、`inspect-source`、`initialize` 與 `verify-schema`；所有命令強制指定 `--config`，Worker 未註冊或自動執行 initializer。
+- `inspect-source` 只讀取 `dbo.FIXALARMS` metadata，回報欄位、型別、長度／精度、NULL、PK／index 與暫定型別差異；現場確認 Area 欄位為 `ALM_ALMAREA`，檢查器已依核准 schema 更新。可選擇執行 `ALM_MSGID` NULL／重複統計，沒有修改來源 table 或 index。
+- 新增版本化 migration `0001_CreateAlarmFoundation`，建立 `alarm.AlarmEvents`、`AlarmStates`、`PollingCheckpoints` 與 `SchemaMigrations`，包含 filtered unique index、查詢 index、PK／FK／CHECK、rowversion 與 ACK nullable Tag 基礎。
+- initializer 預設 dry run；apply 要求設定 Server／Database 雙重確認，並使用 transaction、`sp_getapplock`、SHA-256 migration history 與 rollback。它不建立 database，也不含 DROP／TRUNCATE／FIXALARMS DDL。
+- schema validator 唯讀檢查 schema、table、column、index key／filter／unique／PK、CHECK、FK、enabled／trusted、migration checksum、未套用及工具未知 migration。
+- 加入遠端網路、SQL Authentication、TCP port、SQL Browser、Firewall、TLS、權限、秘密、CLI、現場驗收及階段 2 邊界文件；私有 JSON 已加入 `.gitignore` 且不複製到 build／publish。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln --disable-parallel`：成功；直接參考安全修補版 `System.Security.Cryptography.Pkcs 10.0.13` 後，最後一次 restore 沒有套件弱點警告。
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：326 passed、0 failed、1 skipped；SQL integration test 因沒有核准的獨立 AlarmStore 測試 database 與私有設定而依設計略過。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：通過；受限環境的 Roslyn named pipe 權限失敗後，依既有專案驗證方式允許必要權限完成。
+- `dotnet list AlarmSystem.sln package --vulnerable --include-transitive --no-restore`：所有 11 個專案均未回報已知弱點套件。
+- 新增的離線測試涵蓋 JSON、endpoint 格式、SQL Password、密碼特殊字元、TLS 明確設定、遮罩、角色防呆、error mapping、checksum、非破壞性 migration、schema 規則與 apply confirmation。
+- 對 `Role=Source` 執行 `initialize --dry-run`：在開啟 SQL 操作前以 `configuration` 錯誤拒絕，確認來源連線不能再用來執行 migration。
+- 對現場來源執行唯讀 `test-connection`：成功，角色 `Source`、database `IFIX-ALARM`、SQL Server `17.0.1145.4` Express 64-bit；未輸出帳密。
+- 對現場來源執行唯讀 `inspect-source`（不含資料統計）：成功，`dbo.FIXALARMS` 32 欄、無 PK／index，更新後 `Findings=[]`；未執行 DDL 或讀取警報內容。
+- 對獨立 AlarmStore `Admin\SQLEXPRESS`／`alarmcall` 執行 `test-connection` 與 pre-apply dry-run：成功，角色為 `AlarmStore`，`0001_CreateAlarmFoundation` 尚未套用；使用者明確授權後以 endpoint／database 雙重確認完成套用。
+- 套用後 `verify-schema`：`IsValid=true`、`Issues=[]`；重跑 dry-run 顯示 migration checksum 相符且 `IsApplied=true`。
+- 以該 AlarmStore 明確啟用 `SqlServerDatabaseIntegrationTests`：1 passed、0 failed、0 skipped，驗證併行／重複 initializer、constraints 與失敗 migration transaction rollback；測試後再次 `verify-schema` 仍為有效。
+- `git check-ignore -v config/sql-connection.local.json config/sql-connection.source.local.json config/sql-connection.alarmstore.local.json`：均由根目錄 `.gitignore` 規則命中；repository 未追蹤本機 SQL JSON。
+- `git diff --check`：通過。
+
+### 設定、相容性與尚待確認
+
+- 新增 `Microsoft.Data.SqlClient 7.1.1` 與直接安全修補參考 `System.Security.Cryptography.Pkcs 10.0.13`；新增 `alarm` database schema 契約與 DatabaseTool，但沒有 Worker runtime 設定或自動 migration 行為。
+- 在角色分離決策前，使用者曾核准將 migration 套用至來源 `IFIX-ALARM`；該 database 目前仍有 `alarm` schema 與四個 foundation tables，且已通過 schema 驗證。`dbo.FIXALARMS` 未被 migration 修改；本次未獲刪除授權，因此不移除既有物件。
+- 已取得並驗證獨立 AlarmStore，`alarmcall` 現有 `alarm.AlarmEvents`、`AlarmStates`、`PollingCheckpoints` 與 `SchemaMigrations`。這只證明 database foundation 與 migration 行為，尚未代表 Worker 輪詢、去重、ACK 狀態、outbox 或通知資料流程已完成。
+- `FIXALARMS` 的來源時間精度／時區、穩定 tie-breaker、`ALM_MSGID` 唯一性、ALARM／ACK 值與關聯規則仍阻擋階段 2；本次沒有建立 `SqlAlarmReader`、`AlarmPollingService`、狀態更新、outbox、retry、通知或歷史清理。
+- 既有 Teams、LINE、Email、Desktop 測試 UI、Dongle 授權邊界與通知測試結果均未修改；未追蹤的架構圖未納入本次變更。
+
+---
+
 ## 0.0.10 — Teams 手動發報測試 UI
 
 | 項目 | 內容 |

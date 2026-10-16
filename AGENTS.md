@@ -12,10 +12,12 @@
 iFIX 警報資料
     │ ODBC
     ▼
-SQL Server Express
-    │ 週期輪詢
+來源 SQL Server Express（IFIX-ALARM；唯讀）
+    │ 週期輪詢／正規化
     ▼
 .NET Windows Worker Service
+    │
+    ├──► AlarmSystem 儲存 SQL（獨立主機／database／帳號）
     ├── 事件正規化、ALARM/ACK 判斷、時間戳去重
     ├── HIGH / MEDIUM / LOW 分級與通知路由
     ├── Teams Adaptive Card 通知
@@ -34,6 +36,7 @@ WPF 管理介面 ── 設定、狀態、查詢、測試與多語顯示
 - 技術主體為 C#/.NET，執行環境為 Windows。
 - 後端使用 .NET Worker Service，部署為 Windows Service，定期輪詢警報資料。
 - 主要資料路徑為 iFIX 經 ODBC 寫入或提供資料至 SQL Server Express，再由 Worker Service 查詢 SQL Server Express；除非後續另有決策，Worker 不應直接依賴 iFIX UI。
+- iFIX 來源 SQL 與 AlarmSystem 儲存 SQL 必須分離；兩者使用不同連線設定與最小權限帳號。來源連線不得執行 AlarmSystem migration，`alarm.*` 只能建立在核准的 AlarmSystem 儲存 database。
 - 系統需處理至少兩種事件：`ALARM`（警報發生）與 `ACK`（警報確認）。ACK 是獨立事件，不得只覆寫原 ALARM 而失去稽核軌跡。
 - 事件需依來源時間戳進行增量輪詢與去重；去重狀態必須持久化，不能只存在記憶體。
 - 警報分級至少包含 `HIGH`、`MEDIUM`、`LOW`，內部使用固定 enum 或值物件，不在各模組散落字串比較。

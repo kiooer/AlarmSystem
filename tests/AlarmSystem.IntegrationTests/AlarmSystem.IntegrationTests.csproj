@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AlarmSystem.Application\AlarmSystem.Application.csproj" />
     <ProjectReference Include="..\..\src\AlarmSystem.Infrastructure\AlarmSystem.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\tools\AlarmSystem.DatabaseTool\AlarmSystem.DatabaseTool.csproj" />
   </ItemGroup>
 
   <ItemGroup>
