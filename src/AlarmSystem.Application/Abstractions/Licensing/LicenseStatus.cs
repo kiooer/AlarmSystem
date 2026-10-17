@@ -6,6 +6,7 @@ public enum LicenseSource
     Dongle = 1,
     Demo = 2,
     Composite = 3,
+    Software = 4,
 }
 
 public enum LicenseState
@@ -15,6 +16,7 @@ public enum LicenseState
     Expired = 2,
     Invalid = 3,
     TimeAnomaly = 4,
+    Pending = 5,
 }
 
 public sealed record LicenseStatus(
@@ -31,7 +33,10 @@ public sealed record LicenseStatus(
     DateTimeOffset ValidatedAtUtc,
     string? FailureCode,
     string DiagnosticMessage,
-    IReadOnlyDictionary<NotificationFeature, LicenseSource>? FeatureSources = null)
+    IReadOnlyDictionary<NotificationFeature, LicenseSource>? FeatureSources = null,
+    int? FormatVersion = null,
+    string? BindingMode = null,
+    bool? SignatureValid = null)
 {
     public static LicenseStatus Unlicensed(DateTimeOffset validatedAtUtc, string failureCode) =>
         new(

@@ -26,7 +26,9 @@ public sealed class LicenseImportConfirmationService : ILicenseImportConfirmatio
         string.Format(
             Strings.LicenseImportConfirmationFormat,
             status.LicenseId,
-            status.ExpiresAtUtc?.ToString("u") ?? Strings.NotAvailable,
+            string.Equals(status.LicenseType, "PERPETUAL", StringComparison.Ordinal)
+                ? Strings.LicensePerpetual
+                : status.ExpiresAtUtc?.ToString("u") ?? Strings.NotAvailable,
             string.Join(", ", status.AuthorizedFeatures)),
         Strings.LicenseImportConfirmationTitle,
         MessageBoxButton.YesNo,

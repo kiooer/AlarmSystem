@@ -4,14 +4,17 @@ using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using AlarmSystem.Application.Abstractions.Licensing;
+using AlarmSystem.Infrastructure.Licensing;
 using AlarmSystem.Infrastructure.Licensing.Demo;
+using AlarmSystem.Infrastructure.Licensing.Software;
 
 namespace AlarmSystem.Desktop.Services;
 
 public sealed class LicenseTestService(
     DemoLicenseOptions options,
     IMachineFingerprintProvider fingerprintProvider,
-    DemoLicenseVerifier localVerifier,
+    DemoLicenseVerifier demoVerifier,
+    SoftwareLicenseVerifier softwareVerifier,
     TimeProvider timeProvider) : ILicenseTestService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -43,10 +46,14 @@ public sealed class LicenseTestService(
             return response;
         }
 
-        var validation = localVerifier.Verify(
-            content,
-            fingerprintProvider.GetMachineId(),
-            timeProvider.GetUtcNow());
+        var machineId = fingerprintProvider.GetMachineId();
+        var nowUtc = timeProvider.GetUtcNow();
+        var validation = LicenseFormatDetector.TryDetect(content) switch
+        {
+            1 => demoVerifier.Verify(content, machineId, nowUtc),
+            2 => softwareVerifier.Verify(content, machineId, nowUtc),
+            _ => Unsupported(nowUtc),
+        };
         return new LicenseTestOperationResult(
             validation.IsValid,
             false,
@@ -153,4 +160,27 @@ public sealed class LicenseTestService(
 
     private static LicenseTestOperationResult Unavailable(string diagnostic) =>
         new(false, false, null, null, "license_service_unavailable", diagnostic);
+
+    private static LicenseValidationResult Unsupported(DateTimeOffset nowUtc)
+    {
+        var status = new LicenseStatus(
+            LicenseSource.None,
+            LicenseState.Invalid,
+            null,
+            "Unknown",
+            null,
+            null,
+            null,
+            null,
+            null,
+            [],
+            nowUtc,
+            LicenseAuthorizationFailureCodes.ValidationFailed,
+            "The license format version is missing or unsupported.",
+            SignatureValid: false);
+        return LicenseValidationResult.Invalid(
+            status,
+            LicenseAuthorizationFailureCodes.ValidationFailed,
+            status.DiagnosticMessage);
+    }
 }

@@ -6,6 +6,7 @@ using AlarmSystem.Application.Notifications;
 using AlarmSystem.Application.Polling;
 using AlarmSystem.Infrastructure.Licensing;
 using AlarmSystem.Infrastructure.Licensing.Demo;
+using AlarmSystem.Infrastructure.Licensing.Software;
 using AlarmSystem.Infrastructure.Notifications.Email;
 using AlarmSystem.Infrastructure.Notifications.Line;
 using AlarmSystem.Infrastructure.Notifications.Teams;
@@ -157,17 +158,57 @@ builder.Services.AddSingleton<DemoLicenseVerifier>();
 builder.Services.AddSingleton<DemoLicenseFileStore>();
 builder.Services.AddSingleton<LicenseTimeGuard>();
 builder.Services.AddSingleton<DemoLicenseManager>();
-builder.Services.AddSingleton<ILicenseImportService>(services =>
-    services.GetRequiredService<DemoLicenseManager>());
+
+var softwareSection = builder.Configuration.GetSection(SoftwareLicenseOptions.SectionName);
+var defaultSoftwareOptions = new SoftwareLicenseOptions();
+var softwareOptions = new SoftwareLicenseOptions
+{
+    LicensePath = softwareSection["LicensePath"] ?? defaultSoftwareOptions.LicensePath,
+    StatePath = softwareSection["StatePath"] ?? defaultSoftwareOptions.StatePath,
+    ClockRollbackTolerance = TimeSpan.FromSeconds(
+        int.TryParse(softwareSection["ClockRollbackToleranceSeconds"], out var softwareRollbackSeconds)
+            ? softwareRollbackSeconds
+            : 120),
+    MaximumLicenseBytes = int.TryParse(
+        softwareSection["MaximumLicenseBytes"],
+        out var softwareMaximumLicenseBytes)
+            ? softwareMaximumLicenseBytes
+            : SoftwareLicenseOptions.DefaultMaximumLicenseBytes,
+};
+softwareOptions.Validate();
+var protectedLicensePaths = new[]
+{
+    demoOptions.LicensePath,
+    demoOptions.StatePath,
+    softwareOptions.LicensePath,
+    softwareOptions.StatePath,
+}.Select(Path.GetFullPath).ToArray();
+if (protectedLicensePaths.Distinct(StringComparer.OrdinalIgnoreCase).Count() !=
+    protectedLicensePaths.Length)
+{
+    throw new InvalidOperationException(
+        "Demo V1 and Software V2 license/state paths must be four different files.");
+}
+
+builder.Services.AddSingleton(softwareOptions);
+builder.Services.AddSingleton<ISoftwareLicenseTrustStore, SoftwareLicenseTrustStore>();
+builder.Services.AddSingleton<ISoftwareLicenseStateProtector, DpapiSoftwareLicenseStateProtector>();
+builder.Services.AddSingleton<SoftwareLicenseVerifier>();
+builder.Services.AddSingleton<SoftwareLicenseFileStore>();
+builder.Services.AddSingleton<SoftwareLicenseTimeGuard>();
+builder.Services.AddSingleton<SoftwareLicenseManager>();
 builder.Services.AddSingleton<INotificationLicenseAuthorizer>(services =>
     new CompositeLicenseAuthorizer(
         services.GetRequiredService<UnavailableDongleLicenseAuthorizer>(),
+        services.GetRequiredService<SoftwareLicenseManager>(),
         services.GetRequiredService<DemoLicenseManager>()));
 builder.Services.AddSingleton<ILicenseStatusReader>(services =>
     new CompositeLicenseStatusReader(
         services.GetRequiredService<UnavailableDongleLicenseAuthorizer>(),
+        services.GetRequiredService<SoftwareLicenseManager>(),
         services.GetRequiredService<DemoLicenseManager>(),
         services.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton<ILicenseImportService, LicenseImportCoordinator>();
 builder.Services.AddHostedService<LicenseManagementPipeServer>();
 
 var teamsSection = builder.Configuration.GetSection(TeamsOptions.SectionName);

@@ -11,6 +11,7 @@ public sealed class CompositeLicenseAuthorizerTests
         var demoCalls = 0;
         var authorizer = new CompositeLicenseAuthorizer(
             new StubAuthorizer(_ => LicenseAuthorizationResult.Authorized),
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Authorized),
             new StubAuthorizer(_ =>
             {
                 demoCalls++;
@@ -33,6 +34,8 @@ public sealed class CompositeLicenseAuthorizerTests
     {
         var authorizer = new CompositeLicenseAuthorizer(
             new StubAuthorizer(_ => LicenseAuthorizationResult.Denied(dongleFailure)),
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Denied(
+                LicenseAuthorizationFailureCodes.LicenseUnavailable)),
             new StubAuthorizer(_ => LicenseAuthorizationResult.Authorized));
 
         var result = await authorizer.AuthorizeAsync(
@@ -49,6 +52,7 @@ public sealed class CompositeLicenseAuthorizerTests
         var authorizer = new CompositeLicenseAuthorizer(
             new StubAuthorizer(_ => LicenseAuthorizationResult.Denied(
                 LicenseAuthorizationFailureCodes.ValidationFailed)),
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Authorized),
             new StubAuthorizer(_ =>
             {
                 demoCalls++;
@@ -62,6 +66,45 @@ public sealed class CompositeLicenseAuthorizerTests
         Assert.False(result.IsAuthorized);
         Assert.Equal(LicenseAuthorizationFailureCodes.ValidationFailed, result.FailureCode);
         Assert.Equal(0, demoCalls);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_PrefersSoftwareBeforeDemo()
+    {
+        var demoCalls = 0;
+        var authorizer = new CompositeLicenseAuthorizer(
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Denied(
+                LicenseAuthorizationFailureCodes.DongleUnavailable)),
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Authorized),
+            new StubAuthorizer(_ =>
+            {
+                demoCalls++;
+                return LicenseAuthorizationResult.Authorized;
+            }));
+
+        var result = await authorizer.AuthorizeAsync(
+            NotificationFeature.Email,
+            CancellationToken.None);
+
+        Assert.True(result.IsAuthorized);
+        Assert.Equal(0, demoCalls);
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_FallsBackToDemoAfterSoftwareDenial()
+    {
+        var authorizer = new CompositeLicenseAuthorizer(
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Denied(
+                LicenseAuthorizationFailureCodes.DongleUnavailable)),
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Denied(
+                LicenseAuthorizationFailureCodes.Expired)),
+            new StubAuthorizer(_ => LicenseAuthorizationResult.Authorized));
+
+        var result = await authorizer.AuthorizeAsync(
+            NotificationFeature.Line,
+            CancellationToken.None);
+
+        Assert.True(result.IsAuthorized);
     }
 
     private sealed class StubAuthorizer(

@@ -196,13 +196,13 @@
   <data name="EmailValidationAlarmData" xml:space="preserve"><value>測試警報資料無效；EventId、Tag、內容與含 offset 的時間都必須有效。</value></data>
   <data name="EmailSendConfirmationTitle" xml:space="preserve"><value>確認真實 Email 寄送</value></data>
   <data name="EmailSendConfirmationMessageFormat" xml:space="preserve"><value>這會透過 SMTP 實際寄出測試郵件。&#xA;&#xA;收件群組代碼：{0}&#xA;寄件者：{1}&#xA;收件人數：{2}&#xA;EventId：{3}&#xA;Tag：{4}&#xA;&#xA;是否繼續？</value></data>
-  <data name="LicenseTabHeader" xml:space="preserve"><value>Demo License 測試</value></data>
+  <data name="LicenseTabHeader" xml:space="preserve"><value>Software License 管理</value></data>
   <data name="LicenseToolNotice" xml:space="preserve"><value>License 驗證與正式寫入由 Worker 服務執行。服務未連線時只提供本機唯讀預覽，絕不宣稱已啟用。</value></data>
   <data name="LicenseMachineSection" xml:space="preserve"><value>Machine ID</value></data>
   <data name="LicenseMachineIdLabel" xml:space="preserve"><value>目前 Machine ID</value></data>
   <data name="LicenseCopyMachineIdButton" xml:space="preserve"><value>複製 Machine ID</value></data>
   <data name="LicenseReloadMachineIdButton" xml:space="preserve"><value>重新讀取</value></data>
-  <data name="LicenseImportSection" xml:space="preserve"><value>匯入 Demo License</value></data>
+  <data name="LicenseImportSection" xml:space="preserve"><value>匯入 Software License</value></data>
   <data name="LicensePathLabel" xml:space="preserve"><value>License 檔案</value></data>
   <data name="LicenseSelectButton" xml:space="preserve"><value>選擇 .lic</value></data>
   <data name="LicenseValidateButton" xml:space="preserve"><value>驗證 License</value></data>
@@ -211,6 +211,10 @@
   <data name="LicenseStatusSection" xml:space="preserve"><value>License 狀態</value></data>
   <data name="LicenseIdLabel" xml:space="preserve"><value>License ID</value></data>
   <data name="LicenseTypeLabel" xml:space="preserve"><value>License Type</value></data>
+  <data name="LicenseFormatVersionLabel" xml:space="preserve"><value>格式版本</value></data>
+  <data name="LicenseSourceLabel" xml:space="preserve"><value>授權來源</value></data>
+  <data name="LicenseBindingModeLabel" xml:space="preserve"><value>綁定模式</value></data>
+  <data name="LicenseSignatureValidationLabel" xml:space="preserve"><value>簽章驗證</value></data>
   <data name="LicenseStatusLabel" xml:space="preserve"><value>Status</value></data>
   <data name="LicenseIssuedAtLabel" xml:space="preserve"><value>Issued At</value></data>
   <data name="LicenseValidFromLabel" xml:space="preserve"><value>Valid From</value></data>
@@ -227,20 +231,32 @@
   <data name="LicenseServiceLabel" xml:space="preserve"><value>Worker 服務</value></data>
   <data name="LicenseValidationTimeLabel" xml:space="preserve"><value>驗證時間</value></data>
   <data name="LicenseDiagnosticMessageLabel" xml:space="preserve"><value>診斷訊息</value></data>
-  <data name="LicenseSelectDialogTitle" xml:space="preserve"><value>選擇 Demo License</value></data>
+  <data name="LicenseSelectDialogTitle" xml:space="preserve"><value>選擇 Software License</value></data>
   <data name="LicenseFileFilter" xml:space="preserve"><value>License 檔案 (*.lic)|*.lic</value></data>
-  <data name="LicenseImportConfirmationTitle" xml:space="preserve"><value>確認匯入 Demo License</value></data>
+  <data name="LicenseImportConfirmationTitle" xml:space="preserve"><value>確認匯入 Software License</value></data>
   <data name="LicenseImportConfirmationFormat" xml:space="preserve"><value>即將由 Worker 驗證並啟用 License。&#xA;&#xA;License ID：{0}&#xA;到期時間：{1}&#xA;授權模組：{2}&#xA;&#xA;是否繼續？</value></data>
   <data name="LicenseTypeDemo" xml:space="preserve"><value>Demo</value></data>
+  <data name="LicenseTypeSubscription" xml:space="preserve"><value>訂閱授權</value></data>
+  <data name="LicenseTypePerpetual" xml:space="preserve"><value>永久授權</value></data>
   <data name="LicenseTypeDongle" xml:space="preserve"><value>Dongle</value></data>
-  <data name="LicenseTypeComposite" xml:space="preserve"><value>Dongle + Demo</value></data>
+  <data name="LicenseTypeComposite" xml:space="preserve"><value>多重授權來源</value></data>
   <data name="LicenseTypeUnlicensed" xml:space="preserve"><value>未授權</value></data>
   <data name="LicenseStatusActive" xml:space="preserve"><value>有效</value></data>
+  <data name="LicenseStatusPending" xml:space="preserve"><value>尚未生效</value></data>
   <data name="LicenseStatusExpired" xml:space="preserve"><value>已到期</value></data>
   <data name="LicenseStatusInvalid" xml:space="preserve"><value>無效</value></data>
   <data name="LicenseStatusTimeAnomaly" xml:space="preserve"><value>時間異常</value></data>
   <data name="LicenseStatusUnlicensed" xml:space="preserve"><value>未授權</value></data>
   <data name="LicenseSourceNone" xml:space="preserve"><value>無</value></data>
+  <data name="LicenseSourceDemoV1" xml:space="preserve"><value>Demo V1</value></data>
+  <data name="LicenseSourceSoftware" xml:space="preserve"><value>Software V2</value></data>
+  <data name="LicenseBindingMachine" xml:space="preserve"><value>Machine 綁定</value></data>
+  <data name="LicenseBindingNone" xml:space="preserve"><value>不綁定</value></data>
+  <data name="LicenseBindingNotRequired" xml:space="preserve"><value>不需綁定</value></data>
+  <data name="LicenseSignatureValid" xml:space="preserve"><value>有效</value></data>
+  <data name="LicenseSignatureInvalid" xml:space="preserve"><value>無效</value></data>
+  <data name="LicensePerpetual" xml:space="preserve"><value>永久有效</value></data>
+  <data name="NotApplicable" xml:space="preserve"><value>N/A</value></data>
   <data name="LicenseServiceConnected" xml:space="preserve"><value>已連線，可執行正式匯入</value></data>
   <data name="LicenseServiceNotConnected" xml:space="preserve"><value>未連線；只能唯讀預覽，尚未啟用</value></data>
   <data name="LicenseStatusReady" xml:space="preserve"><value>請連線 Worker 並選擇 .lic 檔案。</value></data>
@@ -253,13 +269,14 @@
   <data name="LicenseImportCancelled" xml:space="preserve"><value>已取消匯入，現有授權未變更。</value></data>
   <data name="LicenseImportFailed" xml:space="preserve"><value>匯入失敗；現有授權未變更。</value></data>
   <data name="LicenseRefreshFailed" xml:space="preserve"><value>無法連線 Worker 重新整理授權狀態。</value></data>
-  <data name="LicenseExpiryReminderFormat" xml:space="preserve"><value>Demo License 將於 {0} 天後到期，請安排正式授權或重新簽發。</value></data>
+  <data name="LicenseExpiryReminderFormat" xml:space="preserve"><value>Software License 將於 {0} 天後到期，請安排正式授權或重新簽發。</value></data>
   <data name="LicenseValidationSucceeded" xml:space="preserve"><value>License 驗證成功且目前有效。</value></data>
-  <data name="LicenseValidationExpired" xml:space="preserve"><value>Demo License 已到期，正式通知不會進入 transport。</value></data>
-  <data name="LicenseValidationTimeAnomaly" xml:space="preserve"><value>偵測到超過容許範圍的系統時間回溯，Demo 授權已安全拒絕。</value></data>
+  <data name="LicenseValidationPending" xml:space="preserve"><value>License 簽章與內容有效，但尚未到生效時間。</value></data>
+  <data name="LicenseValidationExpired" xml:space="preserve"><value>Software License 已到期，未授權模組不會進入 transport。</value></data>
+  <data name="LicenseValidationTimeAnomaly" xml:space="preserve"><value>偵測到超過容許範圍的系統時間回溯，軟體授權已安全拒絕。</value></data>
   <data name="LicenseValidationInvalid" xml:space="preserve"><value>License 格式、簽章、產品、主機或安全狀態驗證失敗。</value></data>
   <data name="LicenseValidationFeatureNotLicensed" xml:space="preserve"><value>目前 License 未授權要求的通知模組。</value></data>
-  <data name="LicenseValidationUnavailable" xml:space="preserve"><value>目前沒有可用的 Dongle 或 Demo License。</value></data>
+  <data name="LicenseValidationUnavailable" xml:space="preserve"><value>目前沒有可用的 Dongle、Software V2 或 Demo V1 License。</value></data>
   <data name="LicenseServiceUnavailableDiagnostic" xml:space="preserve"><value>Worker 服務未連線或本機身分未獲授權；畫面不得宣稱 License 已啟用。</value></data>
   <data name="Yes" xml:space="preserve"><value>是</value></data>
   <data name="No" xml:space="preserve"><value>否</value></data>

@@ -14,6 +14,63 @@
 
 ---
 
+## 0.0.14 — Software License V2 與三來源授權整合
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-17 |
+| 時間 | 23:41:25 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `實作Software License V2與三來源授權`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/License-Format-V2.md`、`docs/History.md`、`開發目標.md`
+- `src/AlarmSystem.Application/Abstractions/Licensing/LicenseAuthorizationFailureCodes.cs`、`LicenseStatus.cs`
+- `src/AlarmSystem.Application/Notifications/CompositeLicenseAuthorizer.cs`、`CompositeLicenseStatusReader.cs`
+- `src/AlarmSystem.Infrastructure/Licensing/Cryptography/*`、`LicenseFormatDetector.cs`、`LicenseImportCoordinator.cs`
+- `src/AlarmSystem.Infrastructure/Licensing/Software/*`
+- `src/AlarmSystem.Infrastructure/Licensing/Demo/DemoLicenseTrustStore.cs`、`DemoLicenseVerifier.cs`
+- `src/AlarmSystem.Worker/Program.cs`、`appsettings.json`
+- `src/AlarmSystem.Desktop/App.xaml.cs`、`Resources/Strings.cs`、`Resources/Strings.resx`
+- `src/AlarmSystem.Desktop/Services/LicenseDesktopDialogs.cs`、`LicenseTestService.cs`
+- `src/AlarmSystem.Desktop/ViewModels/LicenseTestViewModel.cs`、`Views/LicenseTestView.xaml`
+- `tests/AlarmSystem.Application.Tests/Licensing/CompositeLicenseAuthorizerTests.cs`、`CompositeLicenseStatusReaderTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Licensing/SoftwareLicenseTestFactory.cs`、`SoftwareLicenseVerifierTests.cs`、`SoftwareLicenseManagerTests.cs`、`SoftwareLicenseOptionsTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/LicenseTestViewModelTests.cs`
+
+### 開發內容與功能
+
+- 抽出 V1／V2 共用、嚴格的 JWS Compact ES256 驗證核心與 JSON 讀取規則，保留 V1 的 `formatVersion=1`、固定 15／30 天、MACHINE 綁定與既有 Debug／Development 信任政策，不以 V2 的彈性規則放寬 V1。
+- 新增 Software License V2 的 DEMO、SUBSCRIPTION、PERPETUAL 與 MACHINE／NONE 模型。DEMO 接受簽章指定的有限期限及可選綁定；SUBSCRIPTION 強制 MACHINE 與有限期限；PERPETUAL 強制 MACHINE 且 `expiresAtUtc` 必須為 JSON null。未到生效日顯示 Pending，不提供正式 feature 權限；有限授權在 `nowUtc >= expiresAtUtc` 失效。
+- 新增多 `kid` V2 trust-store 架構，但產品預設信任清單刻意為空且沒有設定注入途徑。測試只在執行程序記憶體產生 ephemeral P-256 key；沒有加入私鑰、LicenseIssuer、正式公鑰、USB SDK 或客戶可自行簽發的功能，Release 維持 fail closed。
+- 新增獨立 `software-v2.lic`／`software-license-state.dat`、DPAPI LocalMachine entropy、既有受限 ACL、原子匯入與回復、License ID／內容 fingerprint／LastSeenUtc 驗證。相同 ID 的不同簽章內容拒絕，不同 ID 可換發且延續時間下限；狀態遺失、損毀、不符或明顯時間倒退均 fail closed，不覆寫 V1 檔案。
+- Composite authorizer/status reader 改為逐 feature 套用 `Dongle > Software V2 > Demo V1`。不同來源可合併不同模組，同一模組標示最高優先來源；Dongle 明確安全驗證失敗仍禁止 fallback，V2 失效不會取消已有效的獨立 Dongle feature。
+- Worker 註冊 V2 manager、空信任庫與格式導向的匯入協調器；Named Pipe 介面與 ACL／Windows impersonation 邊界不變。Desktop 本機預覽依 V1／V2 格式導向正式 verifier，正式寫入仍只由 Worker 執行。
+- WPF 授權頁改為「Software License 管理」，新增格式版本、來源、綁定模式、簽章結果與 Pending 顯示；PERPETUAL 顯示「永久有效」／`N/A`，NONE 顯示「不需綁定」，逐 feature 表格支援 Software V2。新增文字均使用既有 RESX 資源。
+- 建立 `開發目標.md`，以可驗證證據標記 Phase 1 完成；Phase 2–6 全部維持未開始／待硬體／待實測，並明確記錄沒有正式 USB 簽發金鑰與正式公鑰。
+- 保留 LINE／Teams／Email 正式 `LicensedNotificationChannel` 集中檢查與 Desktop 人工發送豁免政策；未修改 SQL 輪詢、database schema、migration、通知內容或重發業務規則。
+
+### 測試與驗證
+
+- `dotnet build AlarmSystem.sln -c Release --no-restore --nologo -m:1 --disable-build-servers`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln -c Release --no-restore --nologo -m:1 --disable-build-servers`：425 passed、0 failed、2 skipped（Domain 1、Application 43、Integration 273、Desktop 108）；兩個 skipped 為既有且需 opt-in 的 SQL Server 實庫測試，與本次授權功能無關。
+- V2 測試涵蓋有效／竄改 ES256、未知 kid、錯誤 alg、invalid JSON、重複／未知欄位、未知 type／binding／feature、64 KB 上限、1／7／45／90／365 天 DEMO、MACHINE／NONE、Pending、精確到期、SUBSCRIPTION 到期／主機不符／換發、PERPETUAL 的 null expiration／強制 Machine／重啟，以及相同 ID 防置換。
+- Manager／安全測試涵蓋重啟恢復、重匯入不延長期限、不同 ID 取代已過期授權、時間下限延續、遺失／損毀／不符 state、時間倒退、失敗匯入保留舊授權。Composite 測試涵蓋 V2+V1、Dongle+V2+V1、同 feature 優先、不同 feature 聯集、Dongle 正常 fallback 與安全失敗拒絕。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：成功。
+- `git diff --check`、Worker JSON 解析、Desktop RESX XML 解析與產品目錄私鑰／測試 kid 掃描：通過；沒有發現產品嵌入測試 key 或私鑰。
+- 使用者已驗證本次 WPF UI 功能操作正常；本次其餘開發內容目前只有上述自動化、建置與靜態檢查證據，尚未完成全面人工／實機驗收。
+- 未執行真實 USB、正式 V2 `.lic`、實際 Dongle SDK 或目標 Windows Service 帳號驗收，因相關硬體與正式公鑰尚不存在。
+
+### 設定、相容性與尚待確認
+
+- 新增非敏感 `Licensing:Software` 設定：License／state 路徑、回溯容許秒數與 64 KB 上限。啟動時另驗證 V1／V2 四個檔案路徑不得重疊；公鑰不是設定項。
+- `LicenseSource` 只在尾端新增 `Software=4`，保留既有 enum 數值；`LicenseStatus` 以尾端 optional 欄位新增格式、綁定與簽章資訊，維持現有呼叫相容。
+- 沒有 database schema／migration、通知 payload、SQL、部署秘密或外部 endpoint 變更；沒有提交正式／測試 License、私鑰、token、密碼或 Dongle 資料。
+- 正式 USB Token 型號、Key A／B、kid、公鑰、獨立 private LicenseIssuer、正式 Dongle SDK、Machine ID 實機穩定性、DPAPI／ACL／Named Pipe service-account 驗收、金鑰輪替與撤銷流程仍未完成；詳見 `開發目標.md` Phase 2–6。
+
+---
+
 ## 0.0.13 — Demo License 驗證、Worker 管理通道與 WPF 測試介面
 
 | 項目 | 內容 |

@@ -4,6 +4,7 @@ namespace AlarmSystem.Application.Notifications;
 
 public sealed class CompositeLicenseAuthorizer(
     INotificationLicenseAuthorizer dongleAuthorizer,
+    INotificationLicenseAuthorizer softwareAuthorizer,
     INotificationLicenseAuthorizer demoAuthorizer) : INotificationLicenseAuthorizer
 {
     public async Task<LicenseAuthorizationResult> AuthorizeAsync(
@@ -25,6 +26,15 @@ public sealed class CompositeLicenseAuthorizer(
             dongleResult.FailureCode == LicenseAuthorizationFailureCodes.ValidationFailed)
         {
             return dongleResult;
+        }
+
+        var softwareResult = await AuthorizeSafelyAsync(
+            softwareAuthorizer,
+            feature,
+            cancellationToken);
+        if (softwareResult.IsAuthorized)
+        {
+            return softwareResult;
         }
 
         return await AuthorizeSafelyAsync(demoAuthorizer, feature, cancellationToken);

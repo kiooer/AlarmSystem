@@ -62,7 +62,8 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
           <Label Content="{x:Static resources:Strings.LicenseIdLabel}" />
           <TextBlock Grid.Column="1" Margin="5" Text="{Binding LicenseId}" />
@@ -70,18 +71,26 @@
           <TextBlock Grid.Column="3" Margin="5" Text="{Binding LicenseType}" />
           <Label Grid.Row="1" Content="{x:Static resources:Strings.LicenseStatusLabel}" />
           <TextBlock Grid.Row="1" Grid.Column="1" Margin="5" Text="{Binding Status}" />
-          <Label Grid.Row="1" Grid.Column="2" Content="{x:Static resources:Strings.LicenseRemainingDaysLabel}" />
-          <TextBlock Grid.Row="1" Grid.Column="3" Margin="5" Text="{Binding RemainingDays}" />
-          <Label Grid.Row="2" Content="{x:Static resources:Strings.LicenseIssuedAtLabel}" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Margin="5" Text="{Binding IssuedAt}" />
-          <Label Grid.Row="2" Grid.Column="2" Content="{x:Static resources:Strings.LicenseValidFromLabel}" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Margin="5" Text="{Binding ValidFrom}" />
-          <Label Grid.Row="3" Content="{x:Static resources:Strings.LicenseExpiresAtLabel}" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Margin="5" Text="{Binding ExpiresAt}" />
-          <Label Grid.Row="3" Grid.Column="2" Content="{x:Static resources:Strings.LicenseMachineMatchLabel}" />
-          <TextBlock Grid.Row="3" Grid.Column="3" Margin="5" Text="{Binding MachineIdMatch}" />
-          <Label Grid.Row="4" Content="{x:Static resources:Strings.LicenseFeaturesLabel}" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Margin="5"
+          <Label Grid.Row="1" Grid.Column="2" Content="{x:Static resources:Strings.LicenseSourceLabel}" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Margin="5" Text="{Binding LicenseSourceDisplay}" />
+          <Label Grid.Row="2" Content="{x:Static resources:Strings.LicenseFormatVersionLabel}" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Margin="5" Text="{Binding FormatVersion}" />
+          <Label Grid.Row="2" Grid.Column="2" Content="{x:Static resources:Strings.LicenseBindingModeLabel}" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Margin="5" Text="{Binding BindingMode}" />
+          <Label Grid.Row="3" Content="{x:Static resources:Strings.LicenseIssuedAtLabel}" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Margin="5" Text="{Binding IssuedAt}" />
+          <Label Grid.Row="3" Grid.Column="2" Content="{x:Static resources:Strings.LicenseValidFromLabel}" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Margin="5" Text="{Binding ValidFrom}" />
+          <Label Grid.Row="4" Content="{x:Static resources:Strings.LicenseExpiresAtLabel}" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Margin="5" Text="{Binding ExpiresAt}" />
+          <Label Grid.Row="4" Grid.Column="2" Content="{x:Static resources:Strings.LicenseRemainingDaysLabel}" />
+          <TextBlock Grid.Row="4" Grid.Column="3" Margin="5" Text="{Binding RemainingDays}" />
+          <Label Grid.Row="5" Content="{x:Static resources:Strings.LicenseMachineMatchLabel}" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Margin="5" Text="{Binding MachineIdMatch}" />
+          <Label Grid.Row="5" Grid.Column="2" Content="{x:Static resources:Strings.LicenseSignatureValidationLabel}" />
+          <TextBlock Grid.Row="5" Grid.Column="3" Margin="5" Text="{Binding SignatureValidation}" />
+          <Label Grid.Row="6" Content="{x:Static resources:Strings.LicenseFeaturesLabel}" />
+          <TextBlock Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Margin="5"
                      Text="{Binding AuthorizedFeatures}" TextWrapping="Wrap" />
         </Grid>
       </GroupBox>

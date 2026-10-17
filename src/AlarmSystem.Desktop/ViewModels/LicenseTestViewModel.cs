@@ -26,6 +26,10 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
     private string selectedLicensePath = string.Empty;
     private string licenseId = Strings.NotAvailable;
     private string licenseType = Strings.LicenseTypeUnlicensed;
+    private string formatVersion = Strings.NotAvailable;
+    private string licenseSource = Strings.LicenseSourceNone;
+    private string bindingMode = Strings.NotAvailable;
+    private string signatureValidation = Strings.NotAvailable;
     private string status = Strings.LicenseStatusUnlicensed;
     private string issuedAt = Strings.NotAvailable;
     private string validFrom = Strings.NotAvailable;
@@ -81,6 +85,10 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
     public string SelectedLicensePath { get => selectedLicensePath; private set => SetField(ref selectedLicensePath, value); }
     public string LicenseId { get => licenseId; private set => SetField(ref licenseId, value); }
     public string LicenseType { get => licenseType; private set => SetField(ref licenseType, value); }
+    public string FormatVersion { get => formatVersion; private set => SetField(ref formatVersion, value); }
+    public string LicenseSourceDisplay { get => licenseSource; private set => SetField(ref licenseSource, value); }
+    public string BindingMode { get => bindingMode; private set => SetField(ref bindingMode, value); }
+    public string SignatureValidation { get => signatureValidation; private set => SetField(ref signatureValidation, value); }
     public string Status { get => status; private set => SetField(ref status, value); }
     public string IssuedAt { get => issuedAt; private set => SetField(ref issuedAt, value); }
     public string ValidFrom { get => validFrom; private set => SetField(ref validFrom, value); }
@@ -217,16 +225,25 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
     {
         CurrentStatus = value;
         LicenseId = value.LicenseId ?? Strings.NotAvailable;
-        LicenseType = value.Source switch
+        LicenseType = LocalizeLicenseType(value);
+        FormatVersion = value.FormatVersion?.ToString() ?? Strings.NotAvailable;
+        LicenseSourceDisplay = LocalizeSource(value.Source);
+        BindingMode = value.BindingMode switch
         {
-            LicenseSource.Demo => Strings.LicenseTypeDemo,
-            LicenseSource.Dongle => Strings.LicenseTypeDongle,
-            LicenseSource.Composite => Strings.LicenseTypeComposite,
-            _ => Strings.LicenseTypeUnlicensed,
+            "MACHINE" => Strings.LicenseBindingMachine,
+            "NONE" => Strings.LicenseBindingNone,
+            _ => Strings.NotAvailable,
+        };
+        SignatureValidation = value.SignatureValid switch
+        {
+            true => Strings.LicenseSignatureValid,
+            false => Strings.LicenseSignatureInvalid,
+            _ => Strings.NotAvailable,
         };
         Status = value.State switch
         {
             LicenseState.Active => Strings.LicenseStatusActive,
+            LicenseState.Pending => Strings.LicenseStatusPending,
             LicenseState.Expired => Strings.LicenseStatusExpired,
             LicenseState.Invalid => Strings.LicenseStatusInvalid,
             LicenseState.TimeAnomaly => Strings.LicenseStatusTimeAnomaly,
@@ -234,14 +251,19 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
         };
         IssuedAt = FormatDate(value.IssuedAtUtc);
         ValidFrom = FormatDate(value.NotBeforeUtc);
-        ExpiresAt = FormatDate(value.ExpiresAtUtc);
-        RemainingDays = value.RemainingDays?.ToString() ?? Strings.NotAvailable;
-        MachineIdMatch = value.MachineIdMatches switch
-        {
-            true => Strings.Yes,
-            false => Strings.No,
-            _ => Strings.NotAvailable,
-        };
+        var isPerpetual = string.Equals(value.LicenseType, "PERPETUAL", StringComparison.Ordinal);
+        ExpiresAt = isPerpetual ? Strings.LicensePerpetual : FormatDate(value.ExpiresAtUtc);
+        RemainingDays = isPerpetual
+            ? Strings.NotApplicable
+            : value.RemainingDays?.ToString() ?? Strings.NotAvailable;
+        MachineIdMatch = string.Equals(value.BindingMode, "NONE", StringComparison.Ordinal)
+            ? Strings.LicenseBindingNotRequired
+            : value.MachineIdMatches switch
+            {
+                true => Strings.Yes,
+                false => Strings.No,
+                _ => Strings.NotAvailable,
+            };
         AuthorizedFeatures = value.AuthorizedFeatures.Count == 0
             ? Strings.NotAvailable
             : string.Join(", ", value.AuthorizedFeatures);
@@ -272,6 +294,7 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
                 Source = source switch
                 {
                     LicenseSource.Demo => Strings.LicenseTypeDemo,
+                    LicenseSource.Software => Strings.LicenseSourceSoftware,
                     LicenseSource.Dongle => Strings.LicenseTypeDongle,
                     LicenseSource.Composite => Strings.LicenseTypeComposite,
                     _ => Strings.LicenseSourceNone,
@@ -290,6 +313,7 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
         return result.Status?.State switch
         {
             LicenseState.Active => Strings.LicenseValidationSucceeded,
+            LicenseState.Pending => Strings.LicenseValidationPending,
             LicenseState.Expired => Strings.LicenseValidationExpired,
             LicenseState.TimeAnomaly => Strings.LicenseValidationTimeAnomaly,
             LicenseState.Invalid => Strings.LicenseValidationInvalid,
@@ -298,6 +322,26 @@ public sealed class LicenseTestViewModel : INotifyPropertyChanged
                 : Strings.LicenseValidationUnavailable,
         };
     }
+
+    private static string LocalizeLicenseType(LicenseStatus status) => status.LicenseType switch
+    {
+        "DEMO" or "Demo" => Strings.LicenseTypeDemo,
+        "SUBSCRIPTION" => Strings.LicenseTypeSubscription,
+        "PERPETUAL" => Strings.LicenseTypePerpetual,
+        "Dongle" => Strings.LicenseTypeDongle,
+        "Unlicensed" => Strings.LicenseTypeUnlicensed,
+        _ when status.Source == LicenseSource.Composite => status.LicenseType,
+        _ => status.LicenseType,
+    };
+
+    private static string LocalizeSource(LicenseSource source) => source switch
+    {
+        LicenseSource.Demo => Strings.LicenseSourceDemoV1,
+        LicenseSource.Software => Strings.LicenseSourceSoftware,
+        LicenseSource.Dongle => Strings.LicenseTypeDongle,
+        LicenseSource.Composite => Strings.LicenseTypeComposite,
+        _ => Strings.LicenseSourceNone,
+    };
 
     private static string FormatDate(DateTimeOffset? value) =>
         value?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? Strings.NotAvailable;

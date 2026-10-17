@@ -62,6 +62,75 @@ public sealed class LicenseTestViewModelTests
         Assert.All(viewModel.FeatureRows, row => Assert.Equal(Strings.No, row.Licensed));
     }
 
+    [Fact]
+    public async Task InitializeAsync_DisplaysPerpetualSoftwareLicenseMetadata()
+    {
+        var now = new DateTimeOffset(2026, 10, 17, 8, 0, 0, TimeSpan.Zero);
+        var status = new LicenseStatus(
+            LicenseSource.Software,
+            LicenseState.Active,
+            "PERPETUAL-1",
+            "PERPETUAL",
+            now,
+            now,
+            null,
+            null,
+            true,
+            [NotificationFeature.Email],
+            now,
+            null,
+            "active",
+            FormatVersion: 2,
+            BindingMode: "MACHINE",
+            SignatureValid: true);
+        var viewModel = CreateViewModel(new StubLicenseTestService
+        {
+            Result = new LicenseTestOperationResult(true, true, status, null, null, "active"),
+        });
+
+        await viewModel.InitializeAsync();
+
+        Assert.Equal(Strings.LicenseTypePerpetual, viewModel.LicenseType);
+        Assert.Equal("2", viewModel.FormatVersion);
+        Assert.Equal(Strings.LicenseSourceSoftware, viewModel.LicenseSourceDisplay);
+        Assert.Equal(Strings.LicenseBindingMachine, viewModel.BindingMode);
+        Assert.Equal(Strings.LicenseSignatureValid, viewModel.SignatureValidation);
+        Assert.Equal(Strings.LicensePerpetual, viewModel.ExpiresAt);
+        Assert.Equal(Strings.NotApplicable, viewModel.RemainingDays);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_DisplaysNoBindingAsNotRequired()
+    {
+        var now = new DateTimeOffset(2026, 10, 17, 8, 0, 0, TimeSpan.Zero);
+        var status = new LicenseStatus(
+            LicenseSource.Software,
+            LicenseState.Active,
+            "DEMO-V2-1",
+            "DEMO",
+            now,
+            now,
+            now.AddDays(7),
+            7,
+            null,
+            [NotificationFeature.Teams],
+            now,
+            null,
+            "active",
+            FormatVersion: 2,
+            BindingMode: "NONE",
+            SignatureValid: true);
+        var viewModel = CreateViewModel(new StubLicenseTestService
+        {
+            Result = new LicenseTestOperationResult(true, true, status, null, null, "active"),
+        });
+
+        await viewModel.InitializeAsync();
+
+        Assert.Equal(Strings.LicenseBindingNone, viewModel.BindingMode);
+        Assert.Equal(Strings.LicenseBindingNotRequired, viewModel.MachineIdMatch);
+    }
+
     private static LicenseTestViewModel CreateViewModel(ILicenseTestService service) => new(
         service,
         new StubFilePicker(),

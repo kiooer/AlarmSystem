@@ -1,11 +1,9 @@
 using System.Collections.ObjectModel;
+using AlarmSystem.Infrastructure.Licensing.Cryptography;
 
 namespace AlarmSystem.Infrastructure.Licensing.Demo;
 
-public interface IDemoLicenseTrustStore
-{
-    bool TryGetPublicKey(string keyId, out ReadOnlyMemory<byte> subjectPublicKeyInfo);
-}
+public interface IDemoLicenseTrustStore : ILicensePublicKeyTrustStore;
 
 public sealed class DemoLicenseTrustStore : IDemoLicenseTrustStore
 {
