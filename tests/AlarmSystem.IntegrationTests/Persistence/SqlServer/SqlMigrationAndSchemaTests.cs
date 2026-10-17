@@ -44,19 +44,23 @@ public sealed class SqlMigrationAndSchemaTests
     [Fact]
     public void MigrationCatalog_LoadsVersionedFoundationWithStableChecksum()
     {
-        var migration = Assert.Single(SqlMigrationCatalog.Load());
+        var migrations = SqlMigrationCatalog.Load();
+        Assert.Equal(2, migrations.Count);
+        var migration = migrations[0];
 
         Assert.Equal("0001_CreateAlarmFoundation", migration.MigrationId);
         Assert.Equal(64, migration.ChecksumSha256.Length);
         Assert.Equal(
             SqlMigrationCatalog.ComputeChecksum(Encoding.UTF8.GetBytes(migration.Sql)),
             migration.ChecksumSha256);
+        Assert.Equal("0002_SupportOperatorIngestion", migrations[1].MigrationId);
+        Assert.All(migrations, item => Assert.Equal(64, item.ChecksumSha256.Length));
     }
 
     [Fact]
     public void FoundationMigration_DoesNotContainDestructiveOrSourceTableStatements()
     {
-        var sql = Assert.Single(SqlMigrationCatalog.Load()).Sql;
+        var sql = SqlMigrationCatalog.Load()[0].Sql;
 
         Assert.DoesNotContain("DROP ", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TRUNCATE ", sql, StringComparison.OrdinalIgnoreCase);
@@ -68,6 +72,20 @@ public sealed class SqlMigrationAndSchemaTests
     }
 
     [Fact]
+    public void OperatorMigration_ExtendsOnlyAlarmEventsForRawIngestion()
+    {
+        var sql = SqlMigrationCatalog.Load()[1].Sql;
+
+        Assert.Contains("'OPERATOR'", sql, StringComparison.Ordinal);
+        Assert.Contains("RawPriority", sql, StringComparison.Ordinal);
+        Assert.Contains("RawUnit", sql, StringComparison.Ordinal);
+        Assert.Contains("DataQualityFlags", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("AlarmStates", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("NotificationOutbox", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("FIXALARMS", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void SchemaManifest_ReportsMissingSchemaTablesColumnsIndexesAndMigrations()
     {
         var issues = SqlSchemaManifest.Validate(new SqlSchemaSnapshot()).ToArray();
@@ -75,9 +93,30 @@ public sealed class SqlMigrationAndSchemaTests
         Assert.Contains(issues, issue =>
             issue.Kind == DatabaseSchemaIssueKind.MissingObject && issue.ObjectName == "alarm");
         Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmEvents");
+        Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmEvents.RawPriority");
+        Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmEvents.RawUnit");
+        Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmEvents.DataQualityFlags");
         Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmStates.AlarmVersion");
         Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmStates.CK_AlarmStates_ReminderCount");
         Assert.Contains(issues, issue => issue.ObjectName == "alarm.AlarmStates.FK_AlarmStates_FirstEvent");
+    }
+
+    [Fact]
+    public void SchemaManifest_RejectsPre0002EventTypeConstraint()
+    {
+        var snapshot = new SqlSchemaSnapshot();
+        snapshot.Checks["alarm.AlarmEvents.CK_AlarmEvents_EventType"] = new SqlCheckSnapshot(
+            "alarm.AlarmEvents",
+            "CK_AlarmEvents_EventType",
+            "CHECK (EventType IN ('ALARM', 'ACK'))",
+            false,
+            false);
+
+        var issues = SqlSchemaManifest.Validate(snapshot).ToArray();
+
+        Assert.Contains(issues, issue =>
+            issue.ObjectName == "alarm.AlarmEvents.CK_AlarmEvents_EventType" &&
+            issue.Kind == DatabaseSchemaIssueKind.UnexpectedDefinition);
     }
 
     [Fact]
@@ -125,9 +164,12 @@ public sealed class SqlMigrationAndSchemaTests
         var storeFactory = new SqlServerConnectionFactory(storeOptions);
         _ = new SqlDatabaseInitializer(storeOptions, storeFactory);
         _ = new SqlDatabaseSchemaValidator(storeOptions, storeFactory);
+        _ = new SqlAlarmEventIngestionRepository(storeOptions, storeFactory, 10);
 
         Assert.Throws<SqlConfigurationException>(() =>
             new SqlSourceSchemaInspector(storeOptions, storeFactory));
+        Assert.Throws<SqlConfigurationException>(() =>
+            new SqlAlarmEventIngestionRepository(sourceOptions, sourceFactory, 10));
     }
 
     [Theory]

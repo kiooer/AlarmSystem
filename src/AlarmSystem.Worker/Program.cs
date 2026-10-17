@@ -1,13 +1,114 @@
 using AlarmSystem.Application.Abstractions.Licensing;
 using AlarmSystem.Application.Abstractions.Notifications;
+using AlarmSystem.Application.Abstractions.Persistence;
+using AlarmSystem.Application.Abstractions.Sources;
 using AlarmSystem.Application.Notifications;
+using AlarmSystem.Application.Polling;
 using AlarmSystem.Infrastructure.Licensing;
 using AlarmSystem.Infrastructure.Notifications.Email;
 using AlarmSystem.Infrastructure.Notifications.Line;
 using AlarmSystem.Infrastructure.Notifications.Teams;
+using AlarmSystem.Infrastructure.Persistence.SqlServer;
+using AlarmSystem.Infrastructure.Sources.IFix;
 using AlarmSystem.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+var pollingSection = builder.Configuration.GetSection(AlarmPollingOptions.SectionName);
+var pollingOptions = new AlarmPollingOptions
+{
+    Enabled = bool.TryParse(pollingSection["Enabled"], out var pollingEnabled) && pollingEnabled,
+    IntervalSeconds = int.TryParse(pollingSection["IntervalSeconds"], out var intervalSeconds)
+        ? intervalSeconds
+        : 5,
+    OverlapSeconds = int.TryParse(pollingSection["OverlapSeconds"], out var overlapSeconds)
+        ? overlapSeconds
+        : 60,
+    MaxBatchSize = int.TryParse(pollingSection["MaxBatchSize"], out var maxBatchSize)
+        ? maxBatchSize
+        : 500,
+    CommandTimeoutSeconds = int.TryParse(
+        pollingSection["CommandTimeoutSeconds"],
+        out var pollingCommandTimeoutSeconds)
+            ? pollingCommandTimeoutSeconds
+            : 10,
+    InitialLookbackHours = int.TryParse(
+        pollingSection["InitialLookbackHours"],
+        out var initialLookbackHours)
+            ? initialLookbackHours
+            : 24,
+    MaxFailureBackoffSeconds = int.TryParse(
+        pollingSection["MaxFailureBackoffSeconds"],
+        out var maxFailureBackoffSeconds)
+            ? maxFailureBackoffSeconds
+            : 60,
+    SourceTimeZoneId = pollingSection["SourceTimeZoneId"] ?? "Taipei Standard Time",
+    SourceConfigPath = pollingSection["SourceConfigPath"] ?? string.Empty,
+    AlarmStoreConfigPath = pollingSection["AlarmStoreConfigPath"] ?? string.Empty,
+};
+pollingOptions.Validate();
+builder.Services.AddSingleton(pollingOptions);
+builder.Services.AddSingleton(TimeProvider.System);
+
+if (pollingOptions.Enabled)
+{
+    var sourceConfigPath = Path.GetFullPath(
+        pollingOptions.SourceConfigPath,
+        builder.Environment.ContentRootPath);
+    var alarmStoreConfigPath = Path.GetFullPath(
+        pollingOptions.AlarmStoreConfigPath,
+        builder.Environment.ContentRootPath);
+    var sourceSqlOptions = await SqlServerConnectionOptionsLoader.LoadAsync(sourceConfigPath);
+    var alarmStoreSqlOptions = await SqlServerConnectionOptionsLoader.LoadAsync(alarmStoreConfigPath);
+    if (sourceSqlOptions.Role != SqlServerConnectionRole.Source)
+    {
+        throw new AlarmPollingConfigurationException(
+            "AlarmPolling.SourceConfigPath must reference a SQL configuration with Role=Source.");
+    }
+
+    if (alarmStoreSqlOptions.Role != SqlServerConnectionRole.AlarmStore)
+    {
+        throw new AlarmPollingConfigurationException(
+            "AlarmPolling.AlarmStoreConfigPath must reference a SQL configuration with Role=AlarmStore.");
+    }
+
+    if (!string.Equals(sourceSqlOptions.Database, "IFIX-ALARM", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new AlarmPollingConfigurationException(
+            "AlarmPolling.SourceConfigPath must target the approved IFIX-ALARM database.");
+    }
+
+    if (string.Equals(sourceSqlOptions.Server, alarmStoreSqlOptions.Server, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(sourceSqlOptions.Database, alarmStoreSqlOptions.Database, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new AlarmPollingConfigurationException(
+            "The Source and AlarmStore SQL targets must be separate server/database roles.");
+    }
+
+    var sourceFactory = new SqlServerConnectionFactory(
+        sourceSqlOptions,
+        "AlarmSystem.Worker.Source");
+    var alarmStoreFactory = new SqlServerConnectionFactory(
+        alarmStoreSqlOptions,
+        "AlarmSystem.Worker.AlarmStore");
+    var mapper = new IFixAlarmMapper();
+    builder.Services.AddSingleton<IAlarmSourceReader>(new SqlAlarmReader(
+        sourceSqlOptions,
+        sourceFactory,
+        mapper,
+        pollingOptions.CommandTimeoutSeconds));
+    builder.Services.AddSingleton<IAlarmSourceReader>(new SqlOperatorReader(
+        sourceSqlOptions,
+        sourceFactory,
+        mapper,
+        pollingOptions.CommandTimeoutSeconds));
+    builder.Services.AddSingleton<IAlarmEventIngestionRepository>(
+        new SqlAlarmEventIngestionRepository(
+            alarmStoreSqlOptions,
+            alarmStoreFactory,
+            pollingOptions.CommandTimeoutSeconds));
+    builder.Services.AddSingleton<AlarmPollingService>();
+}
 
 var dongleSection = builder.Configuration.GetSection(DongleLicenseOptions.SectionName);
 var featureMappingSection = dongleSection.GetSection("FeatureMapping");

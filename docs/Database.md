@@ -1,6 +1,6 @@
-# 分離式 SQL Server Database Foundation
+# 分離式 SQL Server 與階段 2A 儲存
 
-本階段已實作 SQL 連線診斷、iFIX 來源 metadata 檢查，以及 AlarmSystem 儲存 schema 的 migration／驗證工具。尚未實作警報輪詢、ACK 關聯、去重流程、outbox 或 Worker 資料存取。
+已實作 SQL 連線診斷、iFIX 來源 metadata 檢查、AlarmSystem migration／schema 驗證工具，以及階段 2A 的 ALARM／OPERATOR 唯讀輪詢、`AlarmEvents` 登錄與 `PollingCheckpoints` 原子更新。階段 2A 只有離線自動化測試證據；iFIX PC 尚未上線，真實來源連線與現場連續輪詢不得宣稱完成。
 
 架構決策見 [`ADR-0001`](adr/0001-separate-source-and-alarm-store.md)。
 
@@ -100,6 +100,15 @@ initializer 不建立 database、不含 `DROP`／`TRUNCATE`，也不修改 `dbo.
 | `alarm.PollingCheckpoints` | 來源 stream watermark 基礎 |
 | `alarm.SchemaMigrations` | migration ID、checksum、時間與工具版本 |
 
+`0002_SupportOperatorIngestion` 不修改已套用的 0001，僅調整 `alarm.AlarmEvents`：
+
+- `CK_AlarmEvents_EventType` 接受 `ALARM`、`OPERATOR`、`ACK`。
+- 新增 nullable `RawPriority nvarchar(128)`、`RawUnit nvarchar(128)`，保留 `ALM_ALMPRIORITY` 與 `ALM_UNIT`。
+- 新增 nullable `DataQualityFlags nvarchar(256)`，記錄 priority mapping 待定與來源本地時間歧義／無效等受控旗標。
+- 不修改 `AlarmStates`，也不建立 outbox、delivery 或通知資料表。
+
+0002 是向前 migration；回復若移除 raw 欄位或重新禁止 `OPERATOR` 會造成資料遺失／相容性破壞，因此沒有自動 down script。若部署必須回復，應先停止 Worker、確認備份與既有 OPERATOR／raw data，再以另行核准的版本化 migration 處理，不可直接修改已套用的 0002 或 migration history。
+
 `verify-schema` 唯讀檢查 schema、table、欄位、PK／index、CHECK／FK 與 migration history，不會自動修正。
 
 2026-10-16 現場驗證已確認獨立 AlarmStore：SQL instance `Admin\SQLEXPRESS`、database `alarmcall`、SQL Server `17.0.1000.7` Express 64-bit。經使用者明確授權後已套用 `0001_CreateAlarmFoundation`；套用後與 SQL integration test 後兩次 `verify-schema` 均回報 `IsValid=true`、`Issues=[]`，重跑 dry-run 回報 migration `IsApplied=true`。
@@ -109,6 +118,43 @@ initializer 不建立 database、不含 `DROP`／`TRUNCATE`，也不修改 `dbo.
 在分離決策確認前，使用者曾核准工具依當時設定將 `0001_CreateAlarmFoundation` 套用到遠端 `IFIX-ALARM`。套用後已驗證四個 `alarm` tables 完整，且 migration 本身不含 `FIXALARMS` DDL。
 
 這些來源端 `alarm.*` 物件目前保留。移除它們需要另行核准，且必須先確認備份、相依性、登入目標與精確物件；本次不執行刪除或 rollback。
+
+## 階段 2A Worker 設定
+
+repository 的 `src/AlarmSystem.Worker/appsettings.json` 只含無秘密且停用的預設。`SourceConfigPath`／`AlarmStoreConfigPath` 是兩份私有 JSON 的路徑；JSON 本身不會被 Worker 專案複製到 build／publish。
+
+```json
+{
+  "AlarmPolling": {
+    "Enabled": false,
+    "IntervalSeconds": 5,
+    "OverlapSeconds": 60,
+    "MaxBatchSize": 500,
+    "CommandTimeoutSeconds": 10,
+    "InitialLookbackHours": 24,
+    "MaxFailureBackoffSeconds": 60,
+    "SourceTimeZoneId": "Taipei Standard Time",
+    "SourceConfigPath": "",
+    "AlarmStoreConfigPath": ""
+  }
+}
+```
+
+`Enabled=false` 時不驗證檔案是否存在，也不建立 SQL reader/repository 或嘗試連線。`Enabled=true` 時才驗證數值、時區、路徑及兩個 SQL role。Worker 不呼叫 `DatabaseInitializer`；部署人員必須先用 DatabaseTool dry-run、核准 apply，再執行 `verify-schema`。
+
+## 雙輪詢與 transaction
+
+每輪依序處理 `ALARM` 與 `ACK_OPERATOR`。兩者各自讀取／保存 checkpoint：
+
+1. 讀取 stream checkpoint；首次使用 `InitialLookbackHours`，其後由 watermark 減去 overlap。
+2. 把目前 UTC 轉成設定來源時區的本地時間，固定為本輪查詢上界。
+3. SQL reader 以 `ALM_MSGTYPE`、下界、上界、分頁 cursor 參數查詢 `dbo.FIXALARMS`，明確列出 12 個核准欄位。
+4. Reader 多取一筆，只回傳完整 `ALM_NATIVETIMEIN` 群組；同一 timestamp 群組超過 `MaxBatchSize` 時回報錯誤，不跨過群組。
+5. Application 驗證訊息類型、來源時間、GUID、欄位長度與排序，並依 `SourceTimeZoneId` 轉換 `EventTimeUtc`。歧義或無效本地時間不猜測 UTC，改存 `NULL` 與資料品質旗標。
+6. AlarmStore repository 在 serializable transaction 內以 `SourceSystem + SourceMessageId` 鎖定／比對既有內容，新增事件或計為一致重讀，再 upsert checkpoint 後 commit。
+7. 同 GUID 異內容回報 `identity_collision`；NULL GUID 回報 `unresolvable_source_identity`。兩者都不提交該批事件或推進 watermark。
+
+完整欄位 mapping 與錯誤復原說明見 [`Stage2A-Polling.md`](Stage2A-Polling.md)。Source 讀取和 AlarmStore transaction 使用不同 connection，沒有分散式 transaction。只要事件尚未在 AlarmStore 安全 commit，checkpoint 就不會前進；重啟後會由持久化 checkpoint 與 overlap 重讀。
 
 ## 測試
 
@@ -126,6 +172,17 @@ $env:ALARMSYSTEM_SQL_TEST_CONFIRM_DATABASE = "ALARM_SYSTEM_TEST"
 dotnet test tests/AlarmSystem.IntegrationTests --filter FullyQualifiedName~SqlServerDatabaseIntegrationTests
 ```
 
-## 後續階段
+Repository DML／transaction 測試會套用待處理 migration、寫入受控 fixture 並清理，因此另需明確確認沒有 Worker 使用該隔離 database：
 
-來源與 AlarmStore 的基礎連線及 schema 已驗證。下一階段仍須依核准的來源欄位語意、時間精度、ALARM／ACK 值、ACK 關聯與 `ALM_MSGID` 品質，才能實作實際輪詢、正規化、去重與狀態更新；不得把本次 database foundation 驗證視為完整資料流程已完成。
+```powershell
+$env:ALARMSYSTEM_RUN_SQL_INGESTION_TESTS = "true"
+dotnet test tests/AlarmSystem.IntegrationTests --filter FullyQualifiedName~SqlAlarmEventIngestionRepositoryTests
+```
+
+一般測試使用記憶體 fake，不讀取兩份私有設定，也不連線 Source。SQL 整合測試仍維持明確 opt-in；階段 2A 開發環境若無可用的核准 AlarmStore，migration dry-run／repository SQL 實測須如實標記未執行，不得以 fake 結果取代。
+
+## 後續階段與現場待驗證
+
+階段 2A 不更新 `AlarmStates`。2B 應以已保存 `AlarmEvents` 的獨立消費進度建立狀態，不能把 Source checkpoint 當成狀態處理完成；2C 才可辨識 OPERATOR 中的 ACK 並建立關聯。通知、outbox、retry scheduler、來源清理與 index 變更均不在 2A。
+
+iFIX 主機上線後仍須驗證真實 SELECT、ALARM／OPERATOR 欄位值、`ALM_MSGID` NULL／重複率、時間精度／時區、同 timestamp 大群組、每五秒查詢成本、是否需要來源 index、ODBC 晚到資料、斷線恢復補讀、逐筆對帳與一小時穩定性；目前全部標記為 **Pending On-Site Verification**。

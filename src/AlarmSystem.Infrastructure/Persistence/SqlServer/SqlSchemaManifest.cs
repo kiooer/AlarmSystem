@@ -57,6 +57,9 @@ internal static class SqlSchemaManifest
         C("AlarmEvents", "Area", "nvarchar", true, 512),
         C("AlarmEvents", "RawValue", "nvarchar", true, 512),
         C("AlarmEvents", "Description", "nvarchar", true, 4096),
+        C("AlarmEvents", "RawPriority", "nvarchar", true, 256),
+        C("AlarmEvents", "RawUnit", "nvarchar", true, 256),
+        C("AlarmEvents", "DataQualityFlags", "nvarchar", true, 512),
         C("AlarmEvents", "SourceEventTime", "datetime2", false, scale: 7),
         C("AlarmEvents", "SourceTimeZoneId", "nvarchar", true, 128),
         C("AlarmEvents", "EventTimeUtc", "datetime2", true, scale: 7),
@@ -131,7 +134,7 @@ internal static class SqlSchemaManifest
 
     private static readonly ExpectedCheck[] Checks =
     [
-        K("AlarmEvents", "CK_AlarmEvents_EventType", "EventType", "ALARM", "ACK"),
+        K("AlarmEvents", "CK_AlarmEvents_EventType", "EventType", "ALARM", "OPERATOR", "ACK"),
         K("AlarmEvents", "CK_AlarmEvents_AlarmLevel", "AlarmLevel", "HIGH", "MEDIUM", "LOW"),
         K("AlarmEvents", "CK_AlarmEvents_AckMatchStatus", "AckMatchStatus",
             "NotApplicable", "Matched", "Unmatched", "Ambiguous"),

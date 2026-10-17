@@ -2,14 +2,14 @@
 
 圖控警報系統的 C#/.NET solution 骨架。
 
-目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter、Teams／LINE／Email 人工測試 UI，以及遠端 SQL Server 的連線診斷、唯讀來源 schema 檢查、`alarm` 基礎 schema migration 與驗證工具。尚未實作 iFIX/ODBC 實際資料擷取、警報輪詢、去重處理流程、outbox、完整派送流程、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
+目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter、Teams／LINE／Email 人工測試 UI、遠端 SQL Server database foundation，以及階段 2A 的 ALARM／OPERATOR 雙輪詢與 `AlarmEvents`／`PollingCheckpoints` 儲存流程。2A 已由離線 fake 驗證，但 iFIX PC 尚未上線，真實 Source SQL 擷取與現場效能仍待驗證。尚未實作 AlarmStates 消費、ACK 關聯、自動通知派送、outbox、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
 
 ## 專案
 
 - `AlarmSystem.Domain`：領域模型與規則。
 - `AlarmSystem.Application`：應用流程與外部介面抽象。
-- `AlarmSystem.Infrastructure`：Teams、LINE、Email SMTP、SQL Server database foundation，以及未來 iFIX／CSV 與安全 adapter。
-- `AlarmSystem.Worker`：背景服務入口。
+- `AlarmSystem.Infrastructure`：Teams、LINE、Email SMTP、iFIX SQL 唯讀 reader、AlarmStore repository 與 SQL Server database foundation。
+- `AlarmSystem.Worker`：背景服務入口與預設停用的階段 2A 排程。
 - `AlarmSystem.Desktop`：WPF 管理介面入口。
 - `AlarmSystem.Domain.Tests`：領域單元測試。
 - `AlarmSystem.Application.Tests`：應用層單元測試。
@@ -40,6 +40,31 @@ dotnet run --project tools/AlarmSystem.DatabaseTool -- verify-schema --config co
 ```
 
 設定中的 `Role` 是必填防呆：`inspect-source` 拒絕 `AlarmStore`，`initialize`／`verify-schema` 拒絕 `Source`。`initialize` 預設為 dry run，實際 DDL 另需 `--apply --confirm-server <AlarmStore Server> --confirm-database <AlarmStore Database>`；工具不建立 database、不修改 `dbo.FIXALARMS`，Worker 啟動也不會自動初始化。完整說明請見 [`docs/Database.md`](docs/Database.md) 與 [`ADR-0001`](docs/adr/0001-separate-source-and-alarm-store.md)。
+
+## 階段 2A：SQL 雙輪詢與事件保存
+
+Worker 現在可依序輪詢兩個固定 stream：`ALARM` 只讀取 `ALM_MSGTYPE='ALARM'`，`ACK_OPERATOR` 只讀取 `ALM_MSGTYPE='OPERATOR'`。OPERATOR 只保存為 `EventType=OPERATOR`；即使文字看似 ACK，也不會在 2A 被轉成 ACK、更新 `AlarmStates` 或觸發任何通知。
+
+輪詢預設停用，停用時不讀取兩份私有 SQL JSON，也不嘗試連線 Source／AlarmStore。正式啟用前須先由 DatabaseTool 套用並驗證 `0002_SupportOperatorIngestion`，再以部署設定或環境變數提供路徑：
+
+```text
+AlarmPolling__Enabled=true
+AlarmPolling__IntervalSeconds=5
+AlarmPolling__OverlapSeconds=60
+AlarmPolling__MaxBatchSize=500
+AlarmPolling__CommandTimeoutSeconds=10
+AlarmPolling__InitialLookbackHours=24
+AlarmPolling__MaxFailureBackoffSeconds=60
+AlarmPolling__SourceTimeZoneId=Taipei Standard Time
+AlarmPolling__SourceConfigPath=config/sql-connection.source.local.json
+AlarmPolling__AlarmStoreConfigPath=config/sql-connection.alarmstore.local.json
+```
+
+設定只保存路徑，不複製 SQL 密碼。Source 設定必須是 `Role=Source`，AlarmStore 設定必須是 `Role=AlarmStore`；Worker 不會自動執行 migration。查詢使用有界時間窗、參數化訊息類型與時間、固定欄位清單、command timeout，以及 `ALM_NATIVETIMEIN`／`ALM_MSGID` 的確定性排序輔助；不使用 `SELECT *`、`NOLOCK` 或時間欄位函數。
+
+每批只在完整時間戳群組邊界提交。事件 insert／內容一致的重讀判定與 checkpoint 更新在同一 AlarmStore transaction；單一時間戳群組超過批次上限、`ALM_MSGID=NULL`、來源時間缺失或同 GUID 內容不同時會停止該 stream 的進度並保存錯誤碼。正式 priority mapping 尚未核准，因此 2A 保存 `RawPriority`，`AlarmLevel` 保持 `NULL` 並記錄資料品質旗標，不會默認為 LOW。
+
+完整流程、欄位 mapping、離線案例與現場待驗證清單見 [`docs/Stage2A-Polling.md`](docs/Stage2A-Polling.md)。目前 iFIX PC 離線，真實 SELECT、GUID 品質統計、五秒連續負載、遠端斷線補讀與來源／AlarmStore 逐筆核對均為 **Pending On-Site Verification**。
 
 ## Dongle License 與正式通知邊界
 
@@ -116,8 +141,8 @@ Notifications__Line__TemplatePath=templates/line-alarm-card.json
 啟用時 `GroupId` 與 `ChannelAccessToken` 必須有值；timeout 必須大於零且不超過兩分鐘。repository
 內的 `appsettings.json` 只保留停用且不含 token 的安全預設。Flex Bubble JSON 超過 30 KB 時會在呼叫 HTTP 前回傳永久失敗，不會截斷警報內容。樣板缺失或無效時同樣不會送出。樣板會複製到 Worker 與 Desktop 的輸出及發佈目錄；Windows Service 以執行檔目錄為基準載入預設相對路徑。原 `LineAlarmTextRenderer` 保留作相容功能，正式 LINE channel 發送 Flex Message。
 
-目前 Worker 尚未具有警報輪詢、outbox、retry scheduler 或派送協調流程；此次只建立並註冊 LINE
-adapter。也未包含配額／用量／月費管理、tenant 隔離、集中式 LINE gateway、webhook receiver、回覆訊息、
+目前 Worker 已具有階段 2A 來源輪詢與原始事件保存，但尚未具有 AlarmStates 消費、outbox、retry scheduler 或自動派送協調流程；LINE
+adapter 不會由 2A 觸發。也未包含配額／用量／月費管理、tenant 隔離、集中式 LINE gateway、webhook receiver、回覆訊息、
 指令機器人或 rich menu。所有自動測試均使用本機 `HttpMessageHandler` stub，不會連線正式
 LINE 或 Teams endpoint。
 

@@ -14,6 +14,61 @@
 
 ---
 
+## 0.0.12 — 階段 2A SQL 雙輪詢與 AlarmEvents 儲存
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-17 |
+| 時間 | 11:02:51 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `實作階段2A SQL雙輪詢與AlarmEvents儲存`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `README.md`、`docs/Database.md`、`docs/Stage2A-Polling.md`、`docs/History.md`
+- `src/AlarmSystem.Domain/Events/AlarmEventType.cs`
+- `src/AlarmSystem.Application/Abstractions/Sources/IAlarmSourceReader.cs`
+- `src/AlarmSystem.Application/Abstractions/Persistence/IAlarmEventIngestionRepository.cs`
+- `src/AlarmSystem.Application/Polling/AlarmPollingOptions.cs`、`AlarmPollingException.cs`、`AlarmPollingResult.cs`、`AlarmPollingService.cs`、`SourceAlarmEvent.cs`
+- `src/AlarmSystem.Infrastructure/Sources/IFix/IFixAlarmMapper.cs`、`SqlIFixSourceReader.cs`、`SqlAlarmReader.cs`、`SqlOperatorReader.cs`
+- `src/AlarmSystem.Infrastructure/Persistence/SqlServer/SqlAlarmEventIngestionRepository.cs`、`SqlServerConnectionFactory.cs`、`SqlSchemaManifest.cs`、`Migrations/0002_SupportOperatorIngestion.sql`
+- `src/AlarmSystem.Worker/Program.cs`、`Worker.cs`、`appsettings.json`
+- `tests/AlarmSystem.Domain.Tests/Events/AlarmEventTypeTests.cs`
+- `tests/AlarmSystem.Application.Tests/Polling/AlarmPollingOptionsTests.cs`、`AlarmPollingServiceTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Sources/IFix/IFixAlarmMapperAndQueryTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Persistence/SqlServer/SqlMigrationAndSchemaTests.cs`、`SqlAlarmEventIngestionRepositoryTests.cs`、`SqlServerIngestionFactAttribute.cs`
+
+### 開發內容與功能
+
+- 新增與 SQL／Worker 解耦的 2A Application 協調層，依序處理 `ALARM` 與 `ACK_OPERATOR`，以可注入 `TimeProvider` 計算首次 lookback、overlap 與固定查詢上界；沒有呼叫通知通道。
+- 新增兩個固定 `ALM_MSGTYPE` 的 iFIX SQL reader，共用明確 12 欄 mapping、參數化有界查詢、command timeout 與 `TOP(MaxBatchSize + 1)` 完整 timestamp 群組切批；不使用 `SELECT *`、`NOLOCK` 或來源時間函數。
+- 新增 AlarmStore repository，在 serializable transaction 內完成 event insert／一致重讀比對及 checkpoint upsert。同 GUID 異內容、NULL GUID、NULL source time 或 timestamp 群組過大都拒絕推進；commit 前中斷可由持久化 checkpoint 重讀。
+- 新增 0002 migration，使 `AlarmEvents.EventType` 支援 `OPERATOR`，並保存 `RawPriority`、`RawUnit`、`DataQualityFlags`；同步更新 schema manifest。既有 0001 未修改，`AlarmStates`／outbox／delivery 未變更。
+- `AlarmEventType` 以既有數值不變的方式新增 `Operator=3`。OPERATOR 中的 ACK-like 文字仍保存為 OPERATOR，`AckMatchStatus=NotApplicable`；正式 priority mapping 未提供，因此只保存 raw value，`AlarmLevel=NULL`。
+- Worker 新增預設停用的 2A 排程、單輪互斥執行、取消與有上限 exponential backoff。啟用時才載入兩份 private SQL JSON 並驗證 Source／AlarmStore role 與分離目標；不自動執行 migration，也不把 private JSON 放入 publish。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln`：成功。
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --no-build --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：347 passed、0 failed、2 skipped（Domain 1、Application 33、Integration 210、Desktop 103）；兩個 skipped 項目分別為需明確 opt-in 的 SQL foundation 與 2A repository 實庫測試。
+- 離線測試涵蓋 ALARM／OPERATOR 分流、ACK-like OPERATOR、NULL Tag、重讀去重、同 timestamp 多 GUID、完整群組切批、群組過大、NULL GUID、GUID collision、NULL source time、unknown priority、晚到資料、timeout、取消、commit 前中斷／重啟與 DST 歧義；既有 Teams／LINE／Email 與 Desktop 回歸測試全部通過。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：沙箱 named pipe 權限失敗後，以核准權限重跑通過。
+- 所有 10 份受版本控制 JSON 解析、`git diff --check`、private SQL JSON ignore 規則與常見秘密樣式掃描：通過；未發現提交秘密。
+- `dotnet list AlarmSystem.sln package --vulnerable --include-transitive --no-restore`：沙箱 NuGet 網路受限後以核准網路重跑，11 個專案均未回報已知弱點套件。
+- Worker 以預設 `AlarmPolling.Enabled=false` 實際啟動，log 明確顯示不嘗試 Source／AlarmStore 連線，之後可正常取消關閉。
+- AlarmStore 0002 dry-run 在沙箱內外均只得到 DatabaseTool 遮罩後的 `Unknown` 連線錯誤；沒有套用 migration。Migration catalog、checksum、SQL 內容與 schema manifest 已離線測試，但不宣稱實庫 migration 成功。
+
+### 設定、相容性與尚待確認
+
+- 新增無秘密的 `AlarmPolling` 設定；預設 5 秒、60 秒 overlap、500 筆、10 秒 command timeout、24 小時首次 lookback、60 秒最大失敗退避、`Taipei Standard Time`，且 `Enabled=false`。時區與各數值是可覆寫暫定預設，啟用前須由部署人員確認。
+- 0002 是 schema 相容性變更；部署必須先在核准 AlarmStore dry-run／備份／apply／verify。Worker 不會自動升級，0002 未套用時不得啟用 2A。沒有自動 down migration，因移除 OPERATOR／raw 欄位可能遺失資料。
+- 真實 iFIX Source SQL 連線、ALARM／OPERATOR SELECT、GUID NULL／重複統計、來源時間精度／時區、五秒輪詢成本、index 需求、ODBC 晚到、斷線補讀、逐筆核對與一小時穩定性全部為 `Pending On-Site Verification`。
+- 來源沒有 PK 且 GUID 可為 NULL 時仍無法保證完全識別兩筆相同內容事件；2A 選擇阻擋進度而非靜默 hash 去重。超過 overlap 的晚到資料能否涵蓋也須依現場延遲統計調整。
+- 2B 必須以獨立 AlarmEvents 消費進度建立 `AlarmStates`；2C 才處理 ACK 關聯。2A 沒有實作狀態更新、自動 Teams／LINE／Email、outbox、retry manager 或來源清理。
+
+---
+
 ## 0.0.11 — 分離式遠端 SQL Server Database Foundation 且測試成功
 
 | 項目 | 內容 |
