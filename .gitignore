@@ -26,6 +26,7 @@ appsettings.*.local.json
 # Private SQL Server credentials
 /config/sql-connection.local.json
 /config/sql-connection.*.local.json
+/artifacts/local-test/
 
 # OS files
 Thumbs.db

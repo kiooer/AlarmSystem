@@ -2,7 +2,7 @@
 
 圖控警報系統的 C#/.NET solution 骨架。
 
-目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter、Teams／LINE／Email 人工測試 UI、遠端 SQL Server database foundation，以及階段 2A 的 ALARM／OPERATOR 雙輪詢與 `AlarmEvents`／`PollingCheckpoints` 儲存流程。2A 已由離線 fake 驗證，但 iFIX PC 尚未上線，真實 Source SQL 擷取與現場效能仍待驗證。尚未實作 AlarmStates 消費、ACK 關聯、自動通知派送、outbox、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
+目前已建立通知共用契約、Teams webhook adapter、LINE Messaging API adapter、Email SMTP adapter、Teams／LINE／Email 人工測試 UI、Demo License 驗證與測試 UI、遠端 SQL Server database foundation，以及階段 2A 的 ALARM／OPERATOR 雙輪詢與 `AlarmEvents`／`PollingCheckpoints` 儲存流程。2A 已由離線 fake 驗證，但 iFIX PC 尚未上線，真實 Source SQL 擷取與現場效能仍待驗證。Demo License 尚未嵌入正式核准公鑰。尚未實作 AlarmStates 消費、ACK 關聯、自動通知派送、outbox、CSV、保留清理或完整 WPF 管理功能。需求與開發約束請以根目錄的 `AGENTS.md` 為準。
 
 ## 專案
 
@@ -66,16 +66,15 @@ AlarmPolling__AlarmStoreConfigPath=config/sql-connection.alarmstore.local.json
 
 完整流程、欄位 mapping、離線案例與現場待驗證清單見 [`docs/Stage2A-Polling.md`](docs/Stage2A-Polling.md)。目前 iFIX PC 離線，真實 SELECT、GUID 品質統計、五秒連續負載、遠端斷線補讀與來源／AlarmStore 逐筆核對均為 **Pending On-Site Verification**。
 
-## Dongle License 與正式通知邊界
+## Dongle／Demo License 與正式通知邊界
 
 Worker 供目前及未來正式派送流程解析的 `IEnumerable<INotificationChannel>`，只包含經
 `LicensedNotificationChannel` 包裝的 LINE、Teams 與 Email 通道。每次正式發送都先檢查各自的
-`NotificationFeature`；只有通道本身 `Enabled` 且對應 Dongle feature 授權成功時，才會進入樣板渲染及 HTTP
+`NotificationFeature`；只有通道本身 `Enabled` 且 Composite authorizer 判定 Dongle 或 Demo feature 授權成功時，才會進入樣板渲染及 HTTP
 或 SMTP transport。LINE、Teams、Email 的授權彼此獨立；Email 使用既有數值不變的
 `NotificationFeature.Email`，沒有建立第二套授權契約。
 
-尚未取得 Dongle 廠商規格，因此目前 Worker 使用明確的 fail-closed authorizer，所有正式 LINE／Teams／Email
-發送都會在 transport 前回傳永久失敗 `license_dongle_unavailable`。Desktop 的互動式手動測試／展示頁是刻意隔離的例外，
+尚未取得 Dongle 廠商規格，因此 Dongle provider 目前仍明確 fail closed；Worker 會在正常的 Dongle unavailable／feature denial 後檢查離線 Demo License。Dongle 安全驗證失敗不得降級。Desktop 的互動式手動通知測試／展示頁是刻意隔離的例外，
 不檢查 Dongle；此例外不代表 Dongle SDK 已完成、硬體可用或正式自動發報已取得授權。
 未授權結果只使用下列非敏感錯誤碼：
 
@@ -96,6 +95,20 @@ repository 預設為 `Provider=Unconfigured` 且 feature code 留空，不包含
 
 取得規格後應只替換 Infrastructure 的 Dongle authorizer，不改變 Application decorator、通知 transport 或 Desktop
 測試工具的邊界。任何 Dongle 序號、原始授權內容及 SDK 原始回應都不得寫入 log、CSV 或版本控制。
+
+Demo License V1 使用 JWS Compact ES256／P-256／SHA-256 與 IEEE P1363 `R||S` 簽章，支援簽章固定的 15／30 天期限及 LINE=1、Teams=2、Email=3 feature。Machine ID 由 Windows 穩定識別資訊正規化後以 SHA-256 產生；時間狀態保存在 `%ProgramData%\AlarmSystem\Licensing`，使用 DPAPI LocalMachine 與限制 ACL，預設容許兩分鐘校時回溯。狀態遺失、損毀或明顯時間回溯都 fail closed。
+
+Worker 以本機 Named Pipe 提供四個受 Windows 身分驗證的 License 管理操作；WPF 新增第四個「Demo License 測試」分頁，支援 Machine ID、選檔、預覽、確認匯入、狀態與逐 feature 來源表格；Dongle 與 Demo 分別授權不同模組時會顯示各自實際來源。Worker 未連線時只顯示唯讀預覽，不能啟用。目前 repository 刻意沒有正式信任公鑰，因此任何正式 `.lic` 仍會 fail closed。供本機 UI 驗證的公開測試金鑰只會在 Debug 編譯且 `DOTNET_ENVIRONMENT=Development` 時加入信任；Release 或非 Development 環境維持空信任清單。私鑰、正式簽發器及可重複產生 License 的工具都不在產品或 repository 內。格式、部署、安全限制與操作步驟詳見 [`docs/License-Format-V1.md`](docs/License-Format-V1.md)。
+
+非敏感 Demo 設定鍵如下；未設定路徑時使用上述 ProgramData 預設。公鑰不是設定項：
+
+```text
+Licensing__Demo__LicensePath
+Licensing__Demo__StatePath
+Licensing__Demo__ClockRollbackToleranceSeconds=120
+Licensing__Demo__MaximumLicenseBytes=65536
+Licensing__Demo__PipeName=AlarmSystem.LicenseManagement.v1
+```
 
 ## Teams 發報模組
 

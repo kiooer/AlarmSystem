@@ -14,6 +14,66 @@
 
 ---
 
+## 0.0.13 — Demo License 驗證、Worker 管理通道與 WPF 測試介面
+
+| 項目 | 內容 |
+|---|---|
+| 日期 | 2026-10-17 |
+| 時間 | 22:24:29 UTC+08:00（Asia/Taipei） |
+| Commit | 本次提交 — `實作Demo License驗證與WPF測試介面`（實際 hash 以 Git history 為準） |
+| 編撰者 | `Codex` |
+
+### 編撰檔案名稱
+
+- `.gitignore`、`README.md`、`docs/License-Format-V1.md`、`docs/History.md`
+- `src/AlarmSystem.Application/Abstractions/Licensing/*`、`src/AlarmSystem.Application/Notifications/CompositeLicenseAuthorizer.cs`、`CompositeLicenseStatusReader.cs`
+- `src/AlarmSystem.Infrastructure/Licensing/Demo/*`（包含 `DevelopmentDemoLicenseTrustStore.cs`）、`src/AlarmSystem.Infrastructure/AlarmSystem.Infrastructure.csproj`
+- `src/AlarmSystem.Worker/Program.cs`、`LicenseManagementPipeServer.cs`、`AlarmSystem.Worker.csproj`、`appsettings.json`
+- `src/AlarmSystem.Desktop/App.xaml.cs`、`MainWindow.xaml`、`MainWindow.xaml.cs`、`Properties/launchSettings.json`、`Resources/Strings.cs`、`Resources/Strings.resx`
+- `src/AlarmSystem.Desktop/Services/ILicenseTestService.cs`、`LicenseTestService.cs`、`LicenseDesktopDialogs.cs`
+- `src/AlarmSystem.Desktop/ViewModels/AsyncRelayCommand.cs`、`LicenseTestViewModel.cs`
+- `src/AlarmSystem.Desktop/Views/LicenseTestView.xaml`、`LicenseTestView.xaml.cs`
+- `tests/AlarmSystem.Application.Tests/Licensing/CompositeLicenseAuthorizerTests.cs`、`CompositeLicenseStatusReaderTests.cs`
+- `tests/AlarmSystem.IntegrationTests/Licensing/DemoLicenseTestFactory.cs`、`DemoLicenseVerifierTests.cs`、`DemoLicenseManagerTests.cs`、`DevelopmentDemoLicenseTrustStoreTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/ViewModels/LicenseTestViewModelTests.cs`
+- `tests/AlarmSystem.Desktop.Tests/Views/LicenseTestViewTests.cs`
+
+### 開發內容與功能
+
+- 新增 JWS Compact License Format V1 嚴格解析與離線 ES256 驗證，只接受 P-256／SHA-256、64-byte IEEE P1363 `R||S`、核准 `kid`、固定 header／payload 欄位及既有 LINE=1、Teams=2、Email=3 feature 值；拒絕重複、未知或不合法欄位。
+- 新增 15／30 天固定 UTC 授權期限、到期瞬間失效、Machine ID SHA-256 指紋、feature 獨立授權、Demo 狀態與非敏感診斷模型。
+- 新增 DPAPI LocalMachine `license-state.dat`、受限 NTFS ACL、LastSeenUtc 與預設兩分鐘回溯容許、狀態遺失／損毀 fail closed，以及保留舊授權的原子匯入流程。
+- 新增 Dongle 優先的 `CompositeLicenseAuthorizer`；正常 unavailable／feature denial 才可降級至 Demo，Dongle 安全驗證失敗不降級。既有 `LicensedNotificationChannel` 每次正式發送重新授權，因此到期 Demo 不會呼叫 HTTP／SMTP transport。
+- Worker 新增本機 Named Pipe 的 `ReadLicenseStatus`、`PreviewLicenseImport`、`ImportLicense`、`RefreshLicenseStatus`，以明確 pipe ACL 及 Windows impersonation 雙層限制 Worker SID、LocalSystem 或本機 Administrators；正式驗證與寫入只在 Worker 端執行。
+- WPF 新增第四個「Demo License 測試」分頁，提供 Machine ID 複製／重讀、64 KB `.lic` 選取、預覽、人工確認匯入、狀態、期限、到期提醒、feature 表格與本地化診斷。Worker 未連線時不宣稱啟用。
+- 新增只在 Debug 編譯且 `DOTNET_ENVIRONMENT=Development` 生效的公開測試金鑰；本機 UI 測試 License 由一次性記憶體私鑰簽章後放在 Git 忽略的 `artifacts/local-test/`。Release 或非 Development 環境維持空信任清單，不含私鑰、LicenseIssuer 或可重複簽發工具。
+- 修正 Demo License 頁面唯讀 `MachineId` 與 License 路徑 `TextBox` 被 WPF 預設為 TwoWay binding、導致主視窗首次 layout 時崩潰的問題；兩個 binding 均明確設為 OneWay，並加入 XAML binding mode 回歸測試。
+- 保留 Teams／LINE／Email 三個人工測試分頁及既有 License 豁免政策，沒有修改 transport、iFIX、SQL schema、outbox 或正式輪詢派送流程。
+
+### 測試與驗證
+
+- `dotnet restore AlarmSystem.sln --disable-parallel`：成功。
+- `dotnet build AlarmSystem.sln --no-restore --disable-build-servers -m:1 -nr:false -v:minimal`：成功，0 warning、0 error。
+- `dotnet test AlarmSystem.sln --configuration Debug --no-build --no-restore --maxcpucount:1`：383 passed、0 failed、2 skipped（Domain 1、Application 39、Integration 237、Desktop 106）；兩個 skipped 仍是需明確 opt-in 的 SQL 實庫測試。
+- 測試涵蓋 15／30 天、UTC 到期邊界、竄改簽章、產品／類型／主機不符、未知 `kid`、錯誤演算法、重複／未知欄位、未授權 feature、超大檔案、時間回溯、狀態遺失／損毀、Dongle 優先與安全失敗、重新匯入、失敗保留舊授權、到期不呼叫 transport、WPF 狀態與 Worker 未連線顯示。
+- `dotnet format AlarmSystem.sln --verify-no-changes --no-restore --verbosity minimal`：沙箱 named pipe 權限失敗後，以核准權限重跑通過。
+- Worker 以預設 `AlarmPolling.Enabled=false` 啟動成功；Named Pipe 以與 Desktop 相同的 Windows impersonation 等級完成 `ReadLicenseStatus` 端對端 smoke test，回傳 `ServiceConnected=true` 與 fail-closed unlicensed 狀態，未連 SQL 或外部通知端點。
+- 本機 `.lic` 透過 Debug／Development Worker 的 `PreviewLicenseImport` 端對端驗證成功：`Active`、Machine ID 相符、15 天、LINE／Teams／Email 三項 feature；僅預覽，未正式匯入或寫入 ProgramData 狀態。
+- Worker 與 Desktop Release build 均成功，0 warning、0 error；同一 `.lic` 經 Release／Development Worker 預覽會回傳 `license_validation_failed` 與未信任 `kid`，證實測試公鑰未進入 Release 信任清單。
+- 修正後實際啟動 Debug／Development Desktop：程序持續回應、取得非零主視窗 handle 與「通知通道手動測試」標題，且啟動後未新增 `.NET Runtime` crash event；驗證完成後只關閉本次啟動的 Desktop，未停止既有 Worker。
+- 使用者已於本機完成 Demo License UI 功能驗證並確認成功。
+- `git diff --check`、Worker JSON 解析、Desktop RESX XML 解析與秘密樣式掃描：通過；掃描命中既有安全的設定屬性／測試變數，未發現私鑰或實際 token／密碼。
+
+### 設定、相容性與尚待確認
+
+- 新增 `Licensing:Demo` 的非敏感設定：License／state 路徑、回溯容許秒數、64 KB 上限與 pipe name；公鑰刻意不是設定項。沒有新增秘密、database schema 或 migration。
+- 新增 `System.Security.Cryptography.ProtectedData 10.0.13`；Worker target 從 `net10.0` 收斂為符合既定部署範圍的 `net10.0-windows`。
+- repository 尚未取得或嵌入正式核准公鑰，Release 與非 Development 信任清單維持空白並 fail closed；僅 Debug／Development 含本機 UI 驗證用公開測試金鑰。測試私鑰未保存，LicenseIssuer 與正式簽發功能未建立。
+- Named Pipe ACL／UAC、ProgramData ACL、DPAPI、Windows Service 帳號、Machine ID 實機／VM 穩定性、系統校時與 snapshot 還原仍須在目標環境驗收。
+- 尚未以正式 `.lic` 或實際 Dongle SDK 端對端驗收；沒有宣稱正式通知已取得授權或已上線。
+
+---
+
 ## 0.0.12 — 階段 2A SQL 雙輪詢與 AlarmEvents 儲存
 
 | 項目 | 內容 |

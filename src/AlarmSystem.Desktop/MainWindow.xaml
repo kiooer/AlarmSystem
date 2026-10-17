@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:domain="clr-namespace:AlarmSystem.Domain.Events;assembly=AlarmSystem.Domain"
         xmlns:resources="clr-namespace:AlarmSystem.Desktop.Resources"
+        xmlns:views="clr-namespace:AlarmSystem.Desktop.Views"
         mc:Ignorable="d"
         Title="{x:Static resources:Strings.WindowTitle}"
         Width="1040"
@@ -882,6 +883,10 @@
           </GroupBox>
         </StackPanel>
        </ScrollViewer>
+      </TabItem>
+      <TabItem x:Name="LicenseTab"
+               Header="{x:Static resources:Strings.LicenseTabHeader}">
+        <views:LicenseTestView />
       </TabItem>
     </TabControl>
 </Window>

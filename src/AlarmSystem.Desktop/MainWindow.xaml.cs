@@ -8,19 +8,30 @@ public partial class MainWindow : Window
     private readonly TeamsNotificationTestViewModel teamsViewModel;
     private readonly LineNotificationTestViewModel lineViewModel;
     private readonly EmailNotificationTestViewModel emailViewModel;
+    private readonly LicenseTestViewModel licenseViewModel;
 
     public MainWindow(
         TeamsNotificationTestViewModel teamsViewModel,
         LineNotificationTestViewModel lineViewModel,
-        EmailNotificationTestViewModel emailViewModel)
+        EmailNotificationTestViewModel emailViewModel,
+        LicenseTestViewModel licenseViewModel)
     {
         InitializeComponent();
         this.teamsViewModel = teamsViewModel;
         this.lineViewModel = lineViewModel;
         this.emailViewModel = emailViewModel;
+        this.licenseViewModel = licenseViewModel;
         DataContext = lineViewModel;
         TeamsTab.DataContext = teamsViewModel;
         EmailTab.DataContext = emailViewModel;
+        LicenseTab.DataContext = licenseViewModel;
+        Loaded += OnLoaded;
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        await licenseViewModel.InitializeAsync();
     }
 
     protected override void OnClosed(EventArgs e)

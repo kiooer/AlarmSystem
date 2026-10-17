@@ -3,6 +3,7 @@ using System.Windows;
 using AlarmSystem.Desktop.Services;
 using AlarmSystem.Desktop.ViewModels;
 using AlarmSystem.Infrastructure.Notifications.Email;
+using AlarmSystem.Infrastructure.Licensing.Demo;
 using AlarmSystem.Infrastructure.Notifications.Line;
 using AlarmSystem.Infrastructure.Notifications.Teams;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,6 +44,23 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IEmailSendConfirmationService, EmailSendConfirmationService>();
         services.AddSingleton<IEmailTestResultDialogService, EmailTestResultDialogService>();
         services.AddTransient<EmailNotificationTestViewModel>();
+
+        var demoLicenseOptions = new DemoLicenseOptions();
+        demoLicenseOptions.Validate();
+        services.AddSingleton(demoLicenseOptions);
+        var isDevelopment = string.Equals(
+            Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"),
+            "Development",
+            StringComparison.OrdinalIgnoreCase);
+        services.AddSingleton<IDemoLicenseTrustStore>(_ =>
+            DevelopmentDemoLicenseTrustStore.Create(isDevelopment));
+        services.AddSingleton<IMachineFingerprintProvider, MachineFingerprintProvider>();
+        services.AddSingleton<DemoLicenseVerifier>();
+        services.AddSingleton<ILicenseTestService, LicenseTestService>();
+        services.AddSingleton<ILicenseFilePicker, LicenseFilePicker>();
+        services.AddSingleton<ILicenseImportConfirmationService, LicenseImportConfirmationService>();
+        services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddTransient<LicenseTestViewModel>();
         services.AddTransient<MainWindow>();
 
         serviceProvider = services.BuildServiceProvider();

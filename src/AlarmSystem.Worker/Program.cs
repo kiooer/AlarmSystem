@@ -5,6 +5,7 @@ using AlarmSystem.Application.Abstractions.Sources;
 using AlarmSystem.Application.Notifications;
 using AlarmSystem.Application.Polling;
 using AlarmSystem.Infrastructure.Licensing;
+using AlarmSystem.Infrastructure.Licensing.Demo;
 using AlarmSystem.Infrastructure.Notifications.Email;
 using AlarmSystem.Infrastructure.Notifications.Line;
 using AlarmSystem.Infrastructure.Notifications.Teams;
@@ -126,7 +127,48 @@ var dongleOptions = new DongleLicenseOptions
 
 dongleOptions.Validate();
 builder.Services.AddSingleton(dongleOptions);
-builder.Services.AddSingleton<INotificationLicenseAuthorizer, UnavailableDongleLicenseAuthorizer>();
+builder.Services.AddSingleton<UnavailableDongleLicenseAuthorizer>();
+
+var demoSection = builder.Configuration.GetSection(DemoLicenseOptions.SectionName);
+var defaultDemoOptions = new DemoLicenseOptions();
+var demoOptions = new DemoLicenseOptions
+{
+    LicensePath = demoSection["LicensePath"] ?? defaultDemoOptions.LicensePath,
+    StatePath = demoSection["StatePath"] ?? defaultDemoOptions.StatePath,
+    ClockRollbackTolerance = TimeSpan.FromSeconds(
+        int.TryParse(demoSection["ClockRollbackToleranceSeconds"], out var rollbackSeconds)
+            ? rollbackSeconds
+            : 120),
+    MaximumLicenseBytes = int.TryParse(
+        demoSection["MaximumLicenseBytes"],
+        out var maximumLicenseBytes)
+            ? maximumLicenseBytes
+            : DemoLicenseOptions.DefaultMaximumLicenseBytes,
+    PipeName = demoSection["PipeName"] ?? DemoLicenseOptions.DefaultPipeName,
+};
+demoOptions.Validate();
+builder.Services.AddSingleton(demoOptions);
+builder.Services.AddSingleton<IDemoLicenseTrustStore>(_ =>
+    DevelopmentDemoLicenseTrustStore.Create(builder.Environment.IsDevelopment()));
+builder.Services.AddSingleton<IMachineFingerprintProvider, MachineFingerprintProvider>();
+builder.Services.AddSingleton<ILicenseStateProtector, DpapiLicenseStateProtector>();
+builder.Services.AddSingleton<ILicenseDirectorySecurity, WindowsLicenseDirectorySecurity>();
+builder.Services.AddSingleton<DemoLicenseVerifier>();
+builder.Services.AddSingleton<DemoLicenseFileStore>();
+builder.Services.AddSingleton<LicenseTimeGuard>();
+builder.Services.AddSingleton<DemoLicenseManager>();
+builder.Services.AddSingleton<ILicenseImportService>(services =>
+    services.GetRequiredService<DemoLicenseManager>());
+builder.Services.AddSingleton<INotificationLicenseAuthorizer>(services =>
+    new CompositeLicenseAuthorizer(
+        services.GetRequiredService<UnavailableDongleLicenseAuthorizer>(),
+        services.GetRequiredService<DemoLicenseManager>()));
+builder.Services.AddSingleton<ILicenseStatusReader>(services =>
+    new CompositeLicenseStatusReader(
+        services.GetRequiredService<UnavailableDongleLicenseAuthorizer>(),
+        services.GetRequiredService<DemoLicenseManager>(),
+        services.GetRequiredService<TimeProvider>()));
+builder.Services.AddHostedService<LicenseManagementPipeServer>();
 
 var teamsSection = builder.Configuration.GetSection(TeamsOptions.SectionName);
 var endpointValue = teamsSection["Endpoint"];

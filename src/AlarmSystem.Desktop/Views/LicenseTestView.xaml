@@ -1,0 +1,128 @@
+<UserControl x:Class="AlarmSystem.Desktop.Views.LicenseTestView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="clr-namespace:AlarmSystem.Desktop.Resources">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="20">
+      <TextBlock Text="{x:Static resources:Strings.LicenseToolNotice}"
+                 Margin="0,0,0,14" Padding="12" TextWrapping="Wrap"
+                 FontWeight="Bold" Foreground="#7A271A" Background="#FEE4E2" />
+
+      <GroupBox Header="{x:Static resources:Strings.LicenseMachineSection}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Label Content="{x:Static resources:Strings.LicenseMachineIdLabel}" />
+          <TextBox x:Name="MachineIdTextBox" Grid.Column="1"
+                   Text="{Binding MachineId, Mode=OneWay}" IsReadOnly="True" />
+          <Button Grid.Column="2" Content="{x:Static resources:Strings.LicenseCopyMachineIdButton}"
+                  Command="{Binding CopyMachineIdCommand}" />
+          <Button Grid.Column="3" Content="{x:Static resources:Strings.LicenseReloadMachineIdButton}"
+                  Command="{Binding ReloadMachineIdCommand}" />
+        </Grid>
+      </GroupBox>
+
+      <GroupBox Header="{x:Static resources:Strings.LicenseImportSection}">
+        <StackPanel>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Label Content="{x:Static resources:Strings.LicensePathLabel}" />
+            <TextBox x:Name="SelectedLicensePathTextBox" Grid.Column="1"
+                     Text="{Binding SelectedLicensePath, Mode=OneWay}" IsReadOnly="True" />
+            <Button Grid.Column="2" Content="{x:Static resources:Strings.LicenseSelectButton}"
+                    Command="{Binding SelectLicenseCommand}" />
+          </Grid>
+          <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="{x:Static resources:Strings.LicenseValidateButton}"
+                    Command="{Binding ValidateLicenseCommand}" />
+            <Button Content="{x:Static resources:Strings.LicenseImportButton}"
+                    Command="{Binding ImportLicenseCommand}" />
+            <Button Content="{x:Static resources:Strings.LicenseRefreshButton}"
+                    Command="{Binding RefreshStatusCommand}" />
+          </WrapPanel>
+        </StackPanel>
+      </GroupBox>
+
+      <GroupBox Header="{x:Static resources:Strings.LicenseStatusSection}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="180" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="180" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Label Content="{x:Static resources:Strings.LicenseIdLabel}" />
+          <TextBlock Grid.Column="1" Margin="5" Text="{Binding LicenseId}" />
+          <Label Grid.Column="2" Content="{x:Static resources:Strings.LicenseTypeLabel}" />
+          <TextBlock Grid.Column="3" Margin="5" Text="{Binding LicenseType}" />
+          <Label Grid.Row="1" Content="{x:Static resources:Strings.LicenseStatusLabel}" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Margin="5" Text="{Binding Status}" />
+          <Label Grid.Row="1" Grid.Column="2" Content="{x:Static resources:Strings.LicenseRemainingDaysLabel}" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Margin="5" Text="{Binding RemainingDays}" />
+          <Label Grid.Row="2" Content="{x:Static resources:Strings.LicenseIssuedAtLabel}" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Margin="5" Text="{Binding IssuedAt}" />
+          <Label Grid.Row="2" Grid.Column="2" Content="{x:Static resources:Strings.LicenseValidFromLabel}" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Margin="5" Text="{Binding ValidFrom}" />
+          <Label Grid.Row="3" Content="{x:Static resources:Strings.LicenseExpiresAtLabel}" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Margin="5" Text="{Binding ExpiresAt}" />
+          <Label Grid.Row="3" Grid.Column="2" Content="{x:Static resources:Strings.LicenseMachineMatchLabel}" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Margin="5" Text="{Binding MachineIdMatch}" />
+          <Label Grid.Row="4" Content="{x:Static resources:Strings.LicenseFeaturesLabel}" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Margin="5"
+                     Text="{Binding AuthorizedFeatures}" TextWrapping="Wrap" />
+        </Grid>
+      </GroupBox>
+
+      <GroupBox Header="{x:Static resources:Strings.LicenseFeatureSection}">
+        <StackPanel>
+          <DataGrid ItemsSource="{Binding FeatureRows}" AutoGenerateColumns="False"
+                    IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column"
+                    MaxHeight="180">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="{x:Static resources:Strings.LicenseModuleColumn}"
+                                  Binding="{Binding Module}" Width="*" />
+              <DataGridTextColumn Header="{x:Static resources:Strings.LicenseLicensedColumn}"
+                                  Binding="{Binding Licensed}" Width="*" />
+              <DataGridTextColumn Header="{x:Static resources:Strings.LicenseSourceColumn}"
+                                  Binding="{Binding Source}" Width="*" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <Button HorizontalAlignment="Right"
+                  Content="{x:Static resources:Strings.LicenseRecheckButton}"
+                  Command="{Binding RecheckFeaturesCommand}" />
+        </StackPanel>
+      </GroupBox>
+
+      <GroupBox Header="{x:Static resources:Strings.LicenseDiagnosticSection}">
+        <Grid>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Label Content="{x:Static resources:Strings.LicenseServiceLabel}" />
+          <TextBlock Grid.Column="1" Margin="5" Text="{Binding ServiceConnection}" TextWrapping="Wrap" />
+          <Label Grid.Row="1" Content="{x:Static resources:Strings.LicenseValidationTimeLabel}" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Margin="5" Text="{Binding ValidatedAt}" />
+          <Label Grid.Row="2" Content="{x:Static resources:Strings.ErrorCodeLabel}" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Margin="5" Text="{Binding ErrorCode}" />
+          <Label Grid.Row="3" Content="{x:Static resources:Strings.LicenseDiagnosticMessageLabel}" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Margin="5" Text="{Binding DiagnosticMessage}" TextWrapping="Wrap" />
+        </Grid>
+      </GroupBox>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
